@@ -1,0 +1,59 @@
+site_name: systemspec-runbook
+site_description: A runbook as data, with owners, dependencies, typed checks, an event log and a generated page
+site_url: https://plexusone.github.io/systemspec-runbook/
+repo_url: https://github.com/plexusone/systemspec-runbook
+repo_name: plexusone/systemspec-runbook
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    # Dark mode first (PlexusOne default)
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+extra_css:
+  - https://plexusone.dev/css/plexusone-mkdocs.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+# docs/guides/ holds the user guides and docs/specs/ the design documents.
+nav:
+  - Home: index.md
+  - Guides:
+      - Getting Started: guides/getting-started.md
+  - API Reference: https://pkg.go.dev/github.com/plexusone/systemspec-runbook
+  - Design:
+      - Product Requirements: specs/PRD.md
+      - Technical Requirements: specs/TRD.md
+      - Plan: specs/PLAN.md
+      - Roadmap: specs/ROADMAP.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/plexusone/systemspec-runbook
