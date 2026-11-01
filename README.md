@@ -27,7 +27,15 @@ was done in an event log, and derives where each step stands.
 - **Dependencies and state.** A step is `blocked`, `ready`, `in-progress`,
   `done` or `verified`, derived from its dependencies and the event log.
 - **Typed checks.** `dns`, `http`, `unreachable`, `command`, or a check
-  registered in Go by name, for what needs an SDK. Checks only read.
+  registered in Go by name, for what needs an SDK. Checks only read, and
+  report `pass`, `fail` with what they saw, or `skip` with why.
+- **Guided runs.** `run <step>` shows each action with its variables
+  filled, asks before each command and runs it without a shell, waits for
+  a person's steps, stops at the first failure, records the step, then
+  runs its checks. A new secret is generated in Go and piped straight into
+  the program that stores it.
+- **Variables.** `{{name}}` in text, commands and checks, declared and
+  filled from flags, the host's providers or the environment.
 - **A generated page.** Markdown with each step's owner, actions, commands,
   credentials, when it is done and its checks. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
@@ -37,6 +45,18 @@ was done in an event log, and derives where each step stands.
 - **An event log** of what happened to each step, by whom and when. It
   refuses notes that look like secrets.
 - **JSON Schemas** of a runbook and its log, generated from the Go types.
+
+## Command Line
+
+```bash
+go install github.com/plexusone/systemspec-runbook/cmd/runbookspec@latest
+runbookspec list   --runbook runbook.json --events events.json
+runbookspec run 1.2 --runbook runbook.json --var profile=ops
+runbookspec verify --all --record --runbook runbook.json
+```
+
+A host tool mounts the same commands over its own runbook with
+`cli.New(cli.Options{Load: …, EventsPath: …, Named: …, Sources: …})`.
 
 ## Use from Go
 
@@ -62,12 +82,15 @@ The package example in `runbookspec/example_test.go` is a complete program.
 |---|---|
 | `runbookspec` | The model, validation, the event log and derived state, rendering and link checks |
 | `schema` | The JSON Schemas of a runbook and its log, embedded; `go generate ./schema` rewrites them |
+| `cli` | The Cobra commands a host tool mounts: validate, list, show, record, verify, run, doc, schema |
+| `cmd/runbookspec` | The same commands over a runbook kept as JSON |
 
 ## Documentation
 
-The [specs](docs/specs/PRD.md) describe the design and the
-[roadmap](docs/specs/ROADMAP.md) what comes next: the check runner, the
-command line, and Cobra commands a host tool mounts.
+The [getting-started guide](docs/guides/getting-started.md) walks through
+declaring, rendering, recording, checking and running a runbook; the
+[specs](docs/specs/PRD.md) describe the design and the
+[roadmap](docs/specs/ROADMAP.md) what comes next.
 
 ## License
 

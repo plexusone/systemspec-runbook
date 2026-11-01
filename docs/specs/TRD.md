@@ -9,11 +9,11 @@ are in [ROADMAP.md](ROADMAP.md).
 |---|---|
 | `runbookspec` | The model, validation, the event log and derived state, rendering and link checks; the check runner and generic checks |
 | `schema` | The JSON Schemas of a runbook and its log, generated from the types and embedded |
-| `cli` (planned) | Cobra commands a host tool mounts over its own runbook |
-| `cmd/runbookspec` (planned) | The command line over JSON files |
+| `cli` | Cobra commands a host tool mounts over its own runbook: validate, list, show, record, verify, run, doc, schema |
+| `cmd/runbookspec` | The same commands over a runbook kept as JSON |
 
 `runbookspec` depends only on the standard library; `schema` adds
-`invopop/jsonschema` and `oscompat`.
+`invopop/jsonschema` and `oscompat`; `cli` adds Cobra.
 
 ## 2. The Model
 
@@ -30,8 +30,16 @@ are in [ROADMAP.md](ROADMAP.md).
   parameters: `dns` (name, type, substrings the answers contain), `http`
   (URL, status, body or redirect location), `unreachable` (address and
   timeout), `command` (arguments, run without a shell), or `named` (a check
-  registered in Go, with string arguments). Parameters may hold `${name}`
+  registered in Go, with string arguments). Parameters may hold `{{name}}`
   variables, filled at run time.
+- **Exec:** what a guided run executes: a program and its arguments, a
+  directory relative to the runbook's root, and environment variables;
+  standard input from another command or from a random value. Never a
+  shell, so a run behaves the same on every platform. The page shows the
+  shell lines a person would type to do the same.
+- **Variable:** a name, a description, an optional environment variable
+  and an example. Every `{{name}}` in the runbook must be declared, and a
+  variable never holds a secret.
 
 Validation checks unique IDs, owners, that dependencies exist and come
 earlier, that each check has exactly its kind's parameters, and, through
@@ -56,18 +64,51 @@ links to a step and `[[<key>|text]]` to a target the caller's resolver
 returns. `Slug` names headings as MkDocs does, and `BrokenLinks` reports
 relative links whose file or heading does not exist.
 
-## 5. Checks (planned)
+## 5. Variables
 
-A runner takes a registry of named checks and a source of variables. Each
-check returns `pass`, `fail` with what it saw, or `skip` with why: a check
-that needs credentials it does not have skips and says so; `skip` is never
-reported as `pass`. Checks only read. A verify run can append `verified` for
-each step whose checks pass, and `failed` for a done step that no longer
-passes.
+Values fill variables from sources in order: `--var name=value` flags,
+then providers the host registers (such as a stack's outputs), then each
+variable's declared environment variable. A command with an unfilled
+variable never runs: the run names every missing value first. The page
+shows a variable as `<name>`.
 
-## 6. Security
+## 6. Checks
+
+A `Checker` runs checks with a registry of named checks and the values.
+Each returns `pass`, `fail` with what it saw, or `skip` with why: a check
+whose variable is unfilled, whose program is missing, or whose named check
+wraps `ErrSkip`, skips and says so; a skip is never a pass. Checks only
+read. `VerifyEvent` decides what a verify records: `verified` when every
+check passed, `failed` when a check fails on a step that was done, and
+nothing otherwise.
+
+## 7. Guided Runs
+
+`Runner.Run` runs one step:
+
+1. It refuses a blocked step unless forced (the `started` event says so),
+   and asks before running a step that is already done again.
+2. It fills every command's variables before anything runs or is
+   recorded.
+3. It records `started`, then shows each action. A command of the runner's
+   owner, or of `both`, is shown as its shell line and run after a yes
+   (or at once with `--yes`); another owner's action, or one with no
+   command, waits for a yes that it is done.
+4. A declined command or action stops the run; the step stays in
+   progress. A failing command records `failed` with the command and
+   stops.
+5. After the last action it records `done`, runs the checks, and records
+   what `VerifyEvent` decides.
+
+Commands' standard input is the terminal, so a program's own questions
+work; the runner reads its own answers one byte at a time so it never
+takes input meant for a command. A random value is generated with
+`crypto/rand` and piped in, never shown or passed as an argument.
+
+## 8. Security
 
 - No type holds a secret's value, and no check reads one.
 - The log refuses notes matching key material, tokens and long random
   strings.
-- Commands in checks run without a shell.
+- Commands, in checks and in runs, run without a shell; a generated secret
+  is piped into the program that stores it, never put in its arguments.

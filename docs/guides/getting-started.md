@@ -65,6 +65,77 @@ data, err := log.Marshal() // commit it with the work
 A step with no events is `blocked` until its dependencies are done or
 verified, then `ready`. A note that looks like a secret is refused.
 
+## Variables
+
+Declare each value known only at run time, and reference it as
+`{{name}}` in text, commands and checks:
+
+```go
+rb.Variables = []runbookspec.Variable{
+	{Name: "profile", Description: "the AWS profile", Env: "AWS_PROFILE"},
+	{Name: "staticIp", Description: "the instance's address"},
+}
+```
+
+Values come from `--var name=value`, then from sources the host registers
+(such as a stack's outputs), then from the declared environment variable.
+The page shows each as `<name>`.
+
+## Commands a Run Executes
+
+`Command` is shown for a person to adapt; `Exec` is what `run` executes:
+a program and its arguments, never through a shell.
+
+```go
+Action{
+	Owner: runbookspec.OwnerOperator,
+	Text:  "Create the stack and set the master password.",
+	Exec: []runbookspec.Exec{
+		{Args: []string{"pulumi", "stack", "init", "prod"}, Dir: "stack",
+			Env: map[string]string{"AWS_PROFILE": "{{profile}}"}},
+		{Args: []string{"pulumi", "config", "set", "--secret", "db:password"}, Dir: "stack",
+			Env:   map[string]string{"AWS_PROFILE": "{{profile}}"},
+			Stdin: &runbookspec.Stdin{RandomHex: 32}},
+	},
+}
+```
+
+`Stdin.RandomHex` generates the password in Go and pipes it in, so it is
+never shown and never in a process's arguments; `Stdin.From` pipes another
+command's output in, as `a | b` would. The page shows the shell lines a
+person would type: `cd stack`, `export AWS_PROFILE=<profile>`,
+`openssl rand -hex 32 | pulumi config set --secret db:password`.
+
+## Checks
+
+```go
+checker := &runbookspec.Checker{
+	Values: values,
+	Named: map[string]runbookspec.NamedFunc{
+		"aws.bucket": func(ctx context.Context, args map[string]string) (string, error) {
+			// return nil when so, an error wrapping ErrSkip when you cannot tell
+		},
+	},
+}
+results := checker.Step(ctx, rb.Step("1.1"))
+```
+
+`dns`, `http`, `unreachable` and `command` checks need no registration.
+`VerifyEvent` turns results into `verified`, or `failed` for a done step
+that no longer passes.
+
+## Run a Step
+
+```bash
+runbookspec run 1.2 --runbook runbook.json --var profile=ops
+```
+
+The run refuses a blocked step, fills every variable before anything runs,
+asks before each command (`--yes` to skip asking), waits for a person's
+steps, stops at the first failure, records `started`, `failed` and `done`,
+and then runs the checks and records `verified`. Another owner's action is
+confirmed as done, never run.
+
 ## Schemas
 
 `schema.Runbook()` and `schema.Events()` return the embedded JSON Schemas.
