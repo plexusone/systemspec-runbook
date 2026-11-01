@@ -208,3 +208,62 @@ func TestExecCommandPipesAndRandom(t *testing.T) {
 		t.Error("a failing command piped in was not reported")
 	}
 }
+
+// A later variable is produced by an earlier command of the same run, as a
+// stack's outputs are once it is up.
+func TestRunFillsALaterVariableWhenItsCommandRuns(t *testing.T) {
+	rb := &Runbook{
+		ID: "launch", Title: "Launch",
+		Variables: []Variable{{Name: "ip", Description: "the address the first command creates", Later: true}},
+		Phases: []Phase{{ID: "1", Title: "Up", Gives: "a host", Steps: []Step{{
+			ID: "1.1", Title: "Up", Owner: OwnerOperator, Done: "up",
+			Actions: []Action{{Text: "Bring it up and reach it.", Exec: []Exec{
+				{Args: []string{"pulumi", "up"}},
+				{Args: []string{"ssh", "ubuntu@{{ip}}", "true"}},
+			}}},
+		}}}},
+	}
+	outputs := map[string]string{}
+	source := MapSource(outputs) // reads the map as it is when asked
+	var ran []string
+	run := func(produce bool) (*Log, error) {
+		l := &Log{Runbook: rb.ID}
+		ran = nil
+		r := &Runner{
+			Values: NewValues(rb, source), Yes: true, Out: io.Discard,
+			Exec: func(_ context.Context, p Prepared, _ io.Reader, _, _ io.Writer) error {
+				ran = append(ran, strings.Join(p.Args, " "))
+				if p.Args[0] == "pulumi" && produce {
+					outputs["ip"] = "192.0.2.10"
+				}
+				return nil
+			},
+		}
+		return l, r.Run(context.Background(), rb, l, "1.1")
+	}
+
+	l, err := run(true)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if strings.Join(ran, "; ") != "pulumi up; ssh ubuntu@192.0.2.10 true" || l.Events[len(l.Events)-1].Type != EventDone {
+		t.Errorf("ran %v, events %v", ran, l.Events)
+	}
+
+	delete(outputs, "ip")
+	l, err = run(false)
+	if err == nil || !strings.Contains(err.Error(), "no value for ip") {
+		t.Fatalf("still unfilled at its command: %v", err)
+	}
+	if len(ran) != 1 || l.Events[len(l.Events)-1].Type != EventFailed {
+		t.Errorf("ran %v, events %v", ran, l.Events)
+	}
+
+	// A variable that is not later is still required before anything runs.
+	rb.Variables[0].Later = false
+	l, err = run(true)
+	var u *UnfilledError
+	if !errors.As(err, &u) || len(ran) != 0 || len(l.Events) != 0 {
+		t.Errorf("not later: %v, ran %v, events %v", err, ran, l.Events)
+	}
+}
