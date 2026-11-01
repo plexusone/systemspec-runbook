@@ -3,6 +3,7 @@ package runbookspec
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -139,7 +140,7 @@ func TestValuesFromCommand(t *testing.T) {
 		t.Errorf("the command ran %d times, want 3", len(calls))
 	}
 	last := calls[len(calls)-1]
-	if last.Dir != "/repo/stack" || strings.Join(last.Env, " ") != "AWS_REGION=us-west-2" {
+	if last.Dir != filepath.Join("/repo", "stack") || strings.Join(last.Env, " ") != "AWS_REGION=us-west-2" {
 		t.Errorf("ran in %s with %v", last.Dir, last.Env)
 	}
 
