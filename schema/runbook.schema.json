@@ -481,6 +481,10 @@
         "example": {
           "type": "string",
           "description": "Example is shown on the rendered page, such as \"us-west-2\"."
+        },
+        "later": {
+          "type": "boolean",
+          "description": "Later marks a value an earlier command of the same run produces,\nsuch as a stack's output after it is brought up. A run does not\nrequire it before it starts, only when the command that uses it is\nabout to run."
         }
       },
       "additionalProperties": false,

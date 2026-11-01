@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -155,6 +156,18 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 		}
 		if len(a.Exec) > 0 && r.runs(owner) {
 			for j, p := range prepared[i] {
+				if p.Args == nil {
+					// A command with a later variable, produced by an
+					// earlier command of this run.
+					var err error
+					if p, err = r.prepareOne(ctx, a.Exec[j]); err != nil {
+						msg := fmt.Sprintf("action %d, command %d: %v", i+1, j+1, err)
+						if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: msg}); rerr != nil {
+							return errors.Join(err, rerr)
+						}
+						return fmt.Errorf("runbook: %s", msg)
+					}
+				}
 				r.say("\n  $ %s", p.Line)
 				if !r.Yes {
 					ok, err := r.Prompt("  Run this command?")
@@ -290,6 +303,8 @@ func (r *Runner) prepare(ctx context.Context, s *Step) ([][]Prepared, error) {
 			switch {
 			case errors.As(err, &u):
 				missing = append(missing, u.Names...)
+				// Filled again just before it runs.
+				out[i] = append(out[i], Prepared{})
 			case err != nil:
 				return nil, err
 			default:
@@ -297,6 +312,7 @@ func (r *Runner) prepare(ctx context.Context, s *Step) ([][]Prepared, error) {
 			}
 		}
 	}
+	missing = slices.DeleteFunc(missing, r.Values.later)
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return nil, &UnfilledError{Names: compact(missing)}

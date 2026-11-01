@@ -59,6 +59,11 @@ type Variable struct {
 	Env string `json:"env,omitempty"`
 	// Example is shown on the rendered page, such as "us-west-2".
 	Example string `json:"example,omitempty"`
+	// Later marks a value an earlier command of the same run produces,
+	// such as a stack's output after it is brought up. A run does not
+	// require it before it starts, only when the command that uses it is
+	// about to run.
+	Later bool `json:"later,omitempty"`
 }
 
 // Phase groups steps toward one result.

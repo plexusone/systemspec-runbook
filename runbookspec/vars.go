@@ -73,7 +73,12 @@ func NewValues(rb *Runbook, sources ...Source) *Values {
 	return v
 }
 
-// Lookup returns a variable's value, and whether any source has one.
+// later reports whether a variable is declared as produced by an earlier
+// command of a run.
+func (v *Values) later(name string) bool { return v.declared[name].Later }
+
+// Lookup returns a variable's value, and whether any source has one. A
+// value no source has is not remembered, so a later lookup asks again.
 func (v *Values) Lookup(ctx context.Context, name string) (string, bool, error) {
 	if val, ok := v.cache[name]; ok {
 		return val, true, nil
