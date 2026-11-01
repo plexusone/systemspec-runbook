@@ -315,25 +315,31 @@ func (r *Runner) prepare(ctx context.Context, s *Step) ([][]Prepared, error) {
 	missing = slices.DeleteFunc(missing, r.Values.later)
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return nil, &UnfilledError{Names: compact(missing)}
+		return nil, r.Values.unfilled(compact(missing))
 	}
 	return out, nil
 }
 
 func (r *Runner) prepareOne(ctx context.Context, e Exec) (Prepared, error) {
-	args, err := r.Values.ExpandAll(ctx, e.Args)
+	return prepareExec(ctx, r.Values, r.Root, e)
+}
+
+// prepareExec fills a command's variables, with its directory relative to
+// root.
+func prepareExec(ctx context.Context, v *Values, root string, e Exec) (Prepared, error) {
+	args, err := v.ExpandAll(ctx, e.Args)
 	if err != nil {
 		return Prepared{}, err
 	}
-	dir, err := r.Values.Expand(ctx, e.Dir)
+	dir, err := v.Expand(ctx, e.Dir)
 	if err != nil {
 		return Prepared{}, err
 	}
 	p := Prepared{Args: args}
 	if dir != "" {
-		p.Dir = filepath.Join(r.Root, filepath.FromSlash(dir))
+		p.Dir = filepath.Join(root, filepath.FromSlash(dir))
 	} else {
-		p.Dir = r.Root
+		p.Dir = root
 	}
 	keys := make([]string, 0, len(e.Env))
 	for k := range e.Env {
@@ -342,15 +348,15 @@ func (r *Runner) prepareOne(ctx context.Context, e Exec) (Prepared, error) {
 	sort.Strings(keys)
 	filled := Exec{Args: args, Dir: dir, Env: map[string]string{}}
 	for _, k := range keys {
-		v, err := r.Values.Expand(ctx, e.Env[k])
+		val, err := v.Expand(ctx, e.Env[k])
 		if err != nil {
 			return Prepared{}, err
 		}
-		p.Env = append(p.Env, k+"="+v)
-		filled.Env[k] = v
+		p.Env = append(p.Env, k+"="+val)
+		filled.Env[k] = val
 	}
 	if in := e.Stdin; in != nil {
-		if p.From, err = r.Values.ExpandAll(ctx, in.From); err != nil {
+		if p.From, err = v.ExpandAll(ctx, in.From); err != nil {
 			return Prepared{}, err
 		}
 		p.RandomHex = in.RandomHex

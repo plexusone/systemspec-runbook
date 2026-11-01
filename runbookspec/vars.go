@@ -1,10 +1,12 @@
 package runbookspec
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"slices"
 	"sort"
@@ -48,25 +50,44 @@ func MapSource(values map[string]string) Source {
 type UnfilledError struct {
 	// Names are the variables, sorted.
 	Names []string
+	// Reasons say, for a variable declared with a command, why the command
+	// gave no value.
+	Reasons map[string]string
 }
 
 func (e *UnfilledError) Error() string {
-	return "runbook: no value for " + strings.Join(e.Names, ", ") + "; give each with --var name=value or its environment variable"
+	msg := "runbook: no value for " + strings.Join(e.Names, ", ") + "; give each with --var name=value or its environment variable"
+	for _, n := range e.Names {
+		if r, ok := e.Reasons[n]; ok {
+			msg += fmt.Sprintf("; %s's command: %s", n, r)
+		}
+	}
+	return msg
 }
 
-// Values fills variables from its sources, in order, and then from each
-// declared variable's environment variable.
+// Values fills variables from its sources, in order, then from each
+// declared variable's environment variable, and then from its command.
 type Values struct {
+	// Root is the directory a variable's command's Dir is relative to;
+	// "." when empty.
+	Root string
+	// Output runs a variable's command and returns its standard output;
+	// nil runs it with os/exec, never through a shell.
+	Output func(ctx context.Context, p Prepared) (string, error)
+
 	sources   []Source
 	declared  map[string]Variable
 	lookupEnv func(string) (string, bool)
 	cache     map[string]string
+	reasons   map[string]string
+	resolving map[string]bool
 }
 
-// NewValues fills the runbook's variables from the sources, in order, and
-// then from the environment.
+// NewValues fills the runbook's variables from the sources, in order, then
+// from the environment, and then from their commands.
 func NewValues(rb *Runbook, sources ...Source) *Values {
-	v := &Values{sources: sources, declared: map[string]Variable{}, lookupEnv: os.LookupEnv, cache: map[string]string{}}
+	v := &Values{sources: sources, declared: map[string]Variable{}, lookupEnv: os.LookupEnv,
+		cache: map[string]string{}, reasons: map[string]string{}, resolving: map[string]bool{}}
 	for _, d := range rb.Variables {
 		v.declared[d.Name] = d
 	}
@@ -93,13 +114,92 @@ func (v *Values) Lookup(ctx context.Context, name string) (string, bool, error) 
 			return val, true, nil
 		}
 	}
-	if d, ok := v.declared[name]; ok && d.Env != "" {
+	d, ok := v.declared[name]
+	if ok && d.Env != "" {
 		if val, ok := v.lookupEnv(d.Env); ok && val != "" {
 			v.cache[name] = val
 			return val, true, nil
 		}
 	}
+	if ok && d.From != nil {
+		return v.fromCommand(ctx, name, *d.From)
+	}
 	return "", false, nil
+}
+
+// fromCommand runs a variable's command. A command that cannot be filled,
+// fails or prints nothing leaves the variable unfilled, with the reason
+// kept for the error that names it; it is not remembered, so it runs again
+// the next time the value is needed.
+func (v *Values) fromCommand(ctx context.Context, name string, e Exec) (string, bool, error) {
+	if v.resolving[name] {
+		return "", false, fmt.Errorf("runbook: variable %s: its command needs its own value", name)
+	}
+	v.resolving[name] = true
+	defer delete(v.resolving, name)
+	root := v.Root
+	if root == "" {
+		root = "."
+	}
+	p, err := prepareExec(ctx, v, root, e)
+	var u *UnfilledError
+	switch {
+	case errors.As(err, &u):
+		v.reasons[name] = "needs " + strings.Join(u.Names, ", ")
+		return "", false, nil
+	case err != nil:
+		return "", false, err
+	}
+	run := v.Output
+	if run == nil {
+		run = commandOutput
+	}
+	out, err := run(ctx, p)
+	line := strings.Join(p.Args, " ")
+	if err != nil {
+		v.reasons[name] = fmt.Sprintf("%s: %v", line, err)
+		return "", false, nil
+	}
+	val := strings.TrimSpace(out)
+	if val == "" {
+		v.reasons[name] = line + ": printed nothing"
+		return "", false, nil
+	}
+	delete(v.reasons, name)
+	v.cache[name] = val
+	return val, true, nil
+}
+
+// commandOutput runs a prepared command without a shell and returns its
+// standard output; the error carries the first line of standard error.
+func commandOutput(ctx context.Context, p Prepared) (string, error) {
+	cmd := exec.CommandContext(ctx, p.Args[0], p.Args[1:]...) //nolint:gosec // G204: the runbook's own declared command
+	cmd.Dir = p.Dir
+	cmd.Env = append(os.Environ(), p.Env...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return "", fmt.Errorf("%w: %s", err, firstLine(msg))
+		}
+		return "", err
+	}
+	return stdout.String(), nil
+}
+
+// unfilled names variables without a value, with the reasons their
+// commands gave.
+func (v *Values) unfilled(names []string) *UnfilledError {
+	e := &UnfilledError{Names: names}
+	for _, n := range names {
+		if r, ok := v.reasons[n]; ok {
+			if e.Reasons == nil {
+				e.Reasons = map[string]string{}
+			}
+			e.Reasons[n] = r
+		}
+	}
+	return e
 }
 
 // Expand replaces every {{name}} in s, or returns an *UnfilledError
@@ -115,7 +215,7 @@ func (v *Values) Expand(ctx context.Context, s string) (string, error) {
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return "", &UnfilledError{Names: missing}
+		return "", v.unfilled(missing)
 	}
 	return varRef.ReplaceAllStringFunc(s, func(m string) string {
 		// Every name was looked up above without an error, and is cached.
@@ -143,7 +243,7 @@ func (v *Values) ExpandAll(ctx context.Context, in []string) ([]string, error) {
 	}
 	if len(missing) > 0 {
 		slices.Sort(missing)
-		return nil, &UnfilledError{Names: slices.Compact(missing)}
+		return nil, v.unfilled(slices.Compact(missing))
 	}
 	return out, nil
 }

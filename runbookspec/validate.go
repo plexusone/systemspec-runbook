@@ -113,7 +113,65 @@ func (rb *Runbook) validateVariables() []error {
 	for _, s := range rb.Steps() {
 		check("step "+s.ID, s.strings())
 	}
+	for _, v := range rb.Variables {
+		if v.From == nil {
+			continue
+		}
+		where := "variable " + v.Name
+		if len(v.From.Args) == 0 || v.From.Args[0] == "" {
+			errs = append(errs, fmt.Errorf("%s: from names no program", where))
+		}
+		if v.From.Stdin != nil {
+			errs = append(errs, fmt.Errorf("%s: from reads no standard input", where))
+		}
+		check(where, v.From.strings())
+	}
+	if name := commandCycle(rb.Variables); name != "" {
+		errs = append(errs, fmt.Errorf("variable %s: its command needs its own value, through the variables it references", name))
+	}
 	return errs
+}
+
+// commandCycle returns a variable whose command references, directly or
+// through other variables' commands, the variable itself; "" when none.
+func commandCycle(vars []Variable) string {
+	needs := map[string][]string{}
+	for _, v := range vars {
+		if v.From == nil {
+			continue
+		}
+		for _, t := range v.From.strings() {
+			needs[v.Name] = append(needs[v.Name], References(t)...)
+		}
+	}
+	const (
+		visiting = 1
+		done     = 2
+	)
+	state := map[string]int{}
+	var visit func(string) bool
+	visit = func(n string) bool {
+		switch state[n] {
+		case visiting:
+			return true
+		case done:
+			return false
+		}
+		state[n] = visiting
+		for _, m := range needs[n] {
+			if visit(m) {
+				return true
+			}
+		}
+		state[n] = done
+		return false
+	}
+	for _, v := range vars {
+		if visit(v.Name) {
+			return v.Name
+		}
+	}
+	return ""
 }
 
 // validate checks a step; seen holds the IDs of the steps before it.

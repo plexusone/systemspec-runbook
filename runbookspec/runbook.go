@@ -64,6 +64,14 @@ type Variable struct {
 	// require it before it starts, only when the command that uses it is
 	// about to run.
 	Later bool `json:"later,omitempty"`
+	// From, when set, is a command whose standard output, trimmed, is the
+	// value, such as a stack's output. It runs only when no flag, provider
+	// or environment variable gives one, and only when the value is first
+	// needed. A command that fails or prints nothing leaves the variable
+	// unfilled, and runs again the next time it is needed. Its arguments,
+	// directory and environment may reference other variables; it reads no
+	// standard input.
+	From *Exec `json:"from,omitempty"`
 }
 
 // Phase groups steps toward one result.

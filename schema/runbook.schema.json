@@ -485,6 +485,10 @@
         "later": {
           "type": "boolean",
           "description": "Later marks a value an earlier command of the same run produces,\nsuch as a stack's output after it is brought up. A run does not\nrequire it before it starts, only when the command that uses it is\nabout to run."
+        },
+        "from": {
+          "$ref": "#/$defs/Exec",
+          "description": "From, when set, is a command whose standard output, trimmed, is the\nvalue, such as a stack's output. It runs only when no flag, provider\nor environment variable gives one, and only when the value is first\nneeded. A command that fails or prints nothing leaves the variable\nunfilled, and runs again the next time it is needed. Its arguments,\ndirectory and environment may reference other variables; it reads no\nstandard input."
         }
       },
       "additionalProperties": false,
