@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/plexusone/systemspec-runbook/schema/runbook.schema.json",
+  "$ref": "#/$defs/Runbook",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "owner": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "agent",
+            "both"
+          ],
+          "description": "Owner does the action, when it is not the step's owner."
+        },
+        "text": {
+          "type": "string",
+          "description": "Text says what to do, in Markdown."
+        },
+        "command": {
+          "type": "string",
+          "description": "Command is shell to run, shown as a code block."
+        },
+        "link": {
+          "$ref": "#/$defs/Link",
+          "description": "Link points into another page, resolved when the runbook is\nrendered, and is shown after the text."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "description": "Action is one thing to do: a command to run, or an instruction."
+    },
+    "Check": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID is unique within the step."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description says what is checked."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "dns",
+            "http",
+            "unreachable",
+            "command",
+            "named"
+          ],
+          "description": "Kind names the check and the field holding its parameters."
+        },
+        "dns": {
+          "$ref": "#/$defs/DNSCheck",
+          "description": "DNS holds a dns check's parameters."
+        },
+        "http": {
+          "$ref": "#/$defs/HTTPCheck",
+          "description": "HTTP holds an http check's parameters."
+        },
+        "unreachable": {
+          "$ref": "#/$defs/UnreachableCheck",
+          "description": "Unreachable holds an unreachable check's parameters."
+        },
+        "command": {
+          "$ref": "#/$defs/CommandCheck",
+          "description": "Command holds a command check's parameters."
+        },
+        "named": {
+          "$ref": "#/$defs/NamedCheck",
+          "description": "Named holds a named check's parameters."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "description",
+        "kind"
+      ],
+      "description": "Check proves part of a step is done."
+    },
+    "CommandCheck": {
+      "properties": {
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Args are the command and its arguments, run without a shell."
+        },
+        "contains": {
+          "type": "string",
+          "description": "Contains, when set, must be in the command's standard output."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "args"
+      ],
+      "description": "CommandCheck passes when the command exits 0."
+    },
+    "DNSCheck": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is looked up."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type is A, AAAA, CNAME, MX, NS or TXT."
+        },
+        "contains": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Contains are substrings, each found in at least one answer, such as\n\"ns.cloudflare.com\" for a zone on Cloudflare."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "contains"
+      ],
+      "description": "DNSCheck passes when a lookup returns an answer containing each wanted string."
+    },
+    "HTTPCheck": {
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL is requested."
+        },
+        "method": {
+          "type": "string",
+          "description": "Method is the request's method; GET when empty."
+        },
+        "status": {
+          "type": "integer",
+          "description": "Status is the status expected."
+        },
+        "contains": {
+          "type": "string",
+          "description": "Contains, when set, must be in the body."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location, when set, must prefix the Location header of a redirect."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "url",
+        "status"
+      ],
+      "description": "HTTPCheck passes when a request returns the status, without following redirects."
+    },
+    "Later": {
+      "properties": {
+        "what": {
+          "type": "string",
+          "description": "What names the work."
+        },
+        "needs": {
+          "type": "string",
+          "description": "Needs says what it takes, in Markdown."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "what",
+        "needs"
+      ],
+      "description": "Later is work after the runbook, for the closing table."
+    },
+    "Link": {
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Text is the link's text."
+        },
+        "key": {
+          "type": "string",
+          "description": "Key names the target for the renderer's resolver, such as\n\"plan:payments\"; Href is used when it is empty."
+        },
+        "href": {
+          "type": "string",
+          "description": "Href is a fixed target, relative to the rendered page."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "description": "Link is a link resolved when the runbook is rendered, so a section renumbered in a generated page cannot break it."
+    },
+    "NamedCheck": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the registered check, such as \"aws.s3-bucket\"."
+        },
+        "args": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Args are its parameters."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "description": "NamedCheck runs a check registered in Go."
+    },
+    "Phase": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID is the phase's number, such as \"0\"."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title names the phase, such as \"Prepare\"."
+        },
+        "gives": {
+          "type": "string",
+          "description": "Gives is what finishing the phase gives, for the summary table."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary introduces the phase, in Markdown."
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array",
+          "description": "Steps are done in order, unless their dependencies say otherwise."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "gives",
+        "steps"
+      ],
+      "description": "Phase groups steps toward one result."
+    },
+    "Runbook": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID names the runbook, such as \"launch\"."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title is the page's title."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary introduces the runbook, in Markdown."
+        },
+        "usage": {
+          "type": "string",
+          "description": "Usage explains how to use the runbook, in Markdown."
+        },
+        "phases": {
+          "items": {
+            "$ref": "#/$defs/Phase"
+          },
+          "type": "array",
+          "description": "Phases are done in order."
+        },
+        "later": {
+          "items": {
+            "$ref": "#/$defs/Later"
+          },
+          "type": "array",
+          "description": "Later is work that follows the runbook, listed at the end."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "phases"
+      ],
+      "description": "Runbook is an ordered procedure: phases of steps."
+    },
+    "Step": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID is \"\u003cphase\u003e.\u003cn\u003e\", such as \"1.1\"; unique in the runbook."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title names the step."
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "agent",
+            "both"
+          ],
+          "description": "Owner does the step; an action may name another owner."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary introduces the step, in Markdown."
+        },
+        "dependsOn": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "DependsOn are the IDs of steps that must be done first. A step\ndepends on nothing implicitly, not even the step before it."
+        },
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/Action"
+          },
+          "type": "array",
+          "description": "Actions do the step, in order."
+        },
+        "done": {
+          "type": "string",
+          "description": "Done is the sentence that says when the step is done, which its\nchecks implement as far as they can."
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Check"
+          },
+          "type": "array",
+          "description": "Checks prove the step is done. They only read."
+        },
+        "credentials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Credentials are the IDs of the credentials the step creates."
+        },
+        "gate": {
+          "type": "boolean",
+          "description": "Gate marks a decision or condition rather than work."
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Notes follow the actions, in Markdown."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "owner",
+        "done"
+      ],
+      "description": "Step is one unit of work, done by its owner and proven by its checks."
+    },
+    "UnreachableCheck": {
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Address is host:port."
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Timeout is a Go duration, such as \"10s\"; 10s when empty."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "address"
+      ],
+      "description": "UnreachableCheck passes when a connection to the address fails within the timeout."
+    }
+  },
+  "title": "Runbook",
+  "description": "An ordered procedure: phases of steps, each with an owner, its dependencies, the actions that do it, the sentence that says when it is done, and the checks that prove it."
+}

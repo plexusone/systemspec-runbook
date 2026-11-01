@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/plexusone/systemspec-runbook/schema/events.schema.json",
+  "$ref": "#/$defs/Log",
+  "$defs": {
+    "Event": {
+      "properties": {
+        "step": {
+          "type": "string",
+          "description": "Step is the step's ID."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "started",
+            "done",
+            "verified",
+            "failed",
+            "skipped",
+            "reopened"
+          ],
+          "description": "Type is what happened."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "At is when, in UTC."
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "agent",
+            "both"
+          ],
+          "description": "By is who: an owner."
+        },
+        "note": {
+          "type": "string",
+          "description": "Note adds context, such as what a failed check saw."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "step",
+        "type",
+        "at"
+      ],
+      "description": "Event is one thing that happened to a step."
+    },
+    "Log": {
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Schema is the log's JSON Schema."
+        },
+        "runbook": {
+          "type": "string",
+          "description": "Runbook is the ID of the runbook the events belong to."
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/Event"
+          },
+          "type": "array",
+          "description": "Events are in the order they were recorded."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "runbook",
+        "events"
+      ],
+      "description": "Log is a runbook's event log, as committed."
+    }
+  },
+  "title": "Runbook events",
+  "description": "What happened to each step of a runbook, by whom and when; never a value."
+}
