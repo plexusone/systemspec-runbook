@@ -93,3 +93,93 @@ func TestShellLines(t *testing.T) {
 		t.Errorf("Code = %q", a.Code())
 	}
 }
+
+// commandRunbook declares region, given by flag or environment, and ip,
+// from a command that needs the region.
+func commandRunbook() *Runbook {
+	return &Runbook{Variables: []Variable{
+		{Name: "region", Description: "the region"},
+		{Name: "ip", Description: "the instance's address", Later: true,
+			From: &Exec{Args: []string{"pulumi", "stack", "output", "staticIp"}, Dir: "stack", Env: map[string]string{"AWS_REGION": "{{region}}"}}},
+	}}
+}
+
+func TestValuesFromCommand(t *testing.T) {
+	ctx := context.Background()
+	var calls []Prepared
+	out, fail := "192.0.2.10\n", error(nil)
+	v := NewValues(commandRunbook(), MapSource(map[string]string{"region": "us-west-2"}))
+	v.Root = "/repo"
+	v.Output = func(_ context.Context, p Prepared) (string, error) {
+		calls = append(calls, p)
+		return out, fail
+	}
+
+	// It fails: unfilled, with the reason, and asked again next time.
+	fail = errors.New("exit status 255: no stack named prod")
+	_, err := v.Expand(ctx, "ssh {{ip}}")
+	var u *UnfilledError
+	if !errors.As(err, &u) || !strings.Contains(u.Reasons["ip"], "no stack named prod") || !strings.Contains(err.Error(), "ip's command: pulumi stack output staticIp") {
+		t.Fatalf("a failing command: %v", err)
+	}
+	fail, out = nil, "  \n"
+	if _, err = v.Expand(ctx, "{{ip}}"); err == nil || !strings.Contains(err.Error(), "printed nothing") {
+		t.Fatalf("an empty output: %v", err)
+	}
+
+	// It prints the value: filled, trimmed, remembered.
+	out = "192.0.2.10\n"
+	for range 2 {
+		got, err := v.Expand(ctx, "ssh {{ip}}")
+		if err != nil || got != "ssh 192.0.2.10" {
+			t.Fatalf("Expand = %q, %v", got, err)
+		}
+	}
+	if len(calls) != 3 {
+		t.Errorf("the command ran %d times, want 3", len(calls))
+	}
+	last := calls[len(calls)-1]
+	if last.Dir != "/repo/stack" || strings.Join(last.Env, " ") != "AWS_REGION=us-west-2" {
+		t.Errorf("ran in %s with %v", last.Dir, last.Env)
+	}
+
+	// A flag wins over the command, which then never runs.
+	calls = nil
+	w := NewValues(commandRunbook(), MapSource(map[string]string{"ip": "198.51.100.1"}))
+	w.Output = v.Output
+	if got, err := w.Expand(ctx, "{{ip}}"); err != nil || got != "198.51.100.1" || len(calls) != 0 {
+		t.Errorf("a flag: %q, %v, %d calls", got, err, len(calls))
+	}
+
+	// The command's own variable missing: unfilled, naming it.
+	x := NewValues(commandRunbook())
+	x.Output = v.Output
+	if _, err := x.Expand(ctx, "{{ip}}"); err == nil || !strings.Contains(err.Error(), "ip's command: needs region") {
+		t.Errorf("a command missing its variable: %v", err)
+	}
+}
+
+func TestValidateVariableCommands(t *testing.T) {
+	cases := map[string]Variable{
+		"no program":   {Name: "x", Description: "x", From: &Exec{}},
+		"stdin":        {Name: "x", Description: "x", From: &Exec{Args: []string{"cat"}, Stdin: &Stdin{RandomHex: 8}}},
+		"undeclared":   {Name: "x", Description: "x", From: &Exec{Args: []string{"echo", "{{nope}}"}}},
+		"needs itself": {Name: "x", Description: "x", From: &Exec{Args: []string{"echo", "{{x}}"}}},
+	}
+	for name, v := range cases {
+		rb := &Runbook{Variables: []Variable{v}}
+		if errs := rb.validateVariables(); len(errs) == 0 {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	loop := &Runbook{Variables: []Variable{
+		{Name: "a", Description: "a", From: &Exec{Args: []string{"echo", "{{b}}"}}},
+		{Name: "b", Description: "b", From: &Exec{Args: []string{"echo", "{{a}}"}}},
+	}}
+	if commandCycle(loop.Variables) == "" {
+		t.Error("a cycle through two commands was not found")
+	}
+	if errs := commandRunbook().validateVariables(); len(errs) != 0 {
+		t.Errorf("a valid command: %v", errs)
+	}
+}

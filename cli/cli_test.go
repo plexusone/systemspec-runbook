@@ -146,3 +146,31 @@ func TestDocAndSchema(t *testing.T) {
 		t.Errorf("schema --log: %v", err)
 	}
 }
+
+// TestVariableFromCommand checks a step whose check needs a variable that
+// only a command gives: go version names the GOOS that go env prints.
+func TestVariableFromCommand(t *testing.T) {
+	dir := t.TempDir()
+	r := &rb.Runbook{
+		ID: "launch", Title: "Launch",
+		Variables: []rb.Variable{{Name: "goos", Description: "the operating system go builds for",
+			From: &rb.Exec{Args: []string{"go", "env", "GOOS"}}}},
+		Phases: []rb.Phase{{ID: "1", Title: "Prepare", Gives: "a machine", Steps: []rb.Step{
+			{ID: "1.1", Title: "Go", Owner: rb.OwnerOperator, Done: "go runs",
+				Actions: []rb.Action{{Text: "Install go."}},
+				Checks: []rb.Check{{ID: "os", Description: "go builds for this system", Kind: rb.KindCommand,
+					Command: &rb.CommandCheck{Args: []string{"go", "version"}, Contains: "{{goos}}"}}}},
+		}}},
+	}
+	if err := r.Validate(rb.ValidateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	cmd := New(Options{Load: func() (*rb.Runbook, error) { return r, nil }, EventsPath: filepath.Join(dir, "events.json")})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"verify", "1.1", "--root", dir})
+	if err := cmd.ExecuteContext(context.Background()); err != nil || !strings.Contains(out.String(), "pass go builds for this system") {
+		t.Fatalf("verify: %v\n%s", err, out.String())
+	}
+}
