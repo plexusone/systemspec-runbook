@@ -77,9 +77,27 @@ rb.Variables = []runbookspec.Variable{
 }
 ```
 
-Values come from `--var name=value`, then from sources the host registers
-(such as a stack's outputs), then from the declared environment variable.
-The page shows each as `<name>`.
+Values come from `--var name=value`, then from sources the host registers,
+then from the declared environment variable, then from the variable's own
+command. The page shows each as `<name>`.
+
+A variable can name the command that gives it, so a runbook kept as JSON
+reads a value with no Go code:
+
+```go
+{Name: "staticIp", Description: "the instance's address", Later: true,
+	From: &runbookspec.Exec{
+		Args: []string{"pulumi", "stack", "output", "staticIp", "--stack", "prod"},
+		Dir:  "stack",
+		Env:  map[string]string{"AWS_PROFILE": "{{profile}}"},
+	}},
+```
+
+The command runs only when the value is first needed, without a shell, in
+`--root` or its `dir`; its trimmed output is the value. If it fails or
+prints nothing, the variable stays unfilled, the error says why, and the
+command runs again the next time. `Later` lets a run start before the
+stack exists.
 
 ## Commands a Run Executes
 

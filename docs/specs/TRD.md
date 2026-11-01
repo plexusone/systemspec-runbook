@@ -37,8 +37,8 @@ are in [ROADMAP.md](ROADMAP.md).
   standard input from another command or from a random value. Never a
   shell, so a run behaves the same on every platform. The page shows the
   shell lines a person would type to do the same.
-- **Variable:** a name, a description, an optional environment variable
-  and an example. Every `{{name}}` in the runbook must be declared, and a
+- **Variable:** a name, a description, an optional environment variable,
+  an example, and an optional command whose output is its value. Every `{{name}}` in the runbook must be declared, and a
   variable never holds a secret.
 
 Validation checks unique IDs, owners, that dependencies exist and come
@@ -67,8 +67,16 @@ relative links whose file or heading does not exist.
 ## 5. Variables
 
 Values fill variables from sources in order: `--var name=value` flags,
-then providers the host registers (such as a stack's outputs), then each
-variable's declared environment variable. A command with an unfilled
+then providers the host registers, then each variable's declared
+environment variable, then the variable's own command (`from`), such as
+`pulumi stack output staticIp`. That command runs without a shell, in the
+runbook's root or its `dir`, only when the value is first needed; its
+trimmed standard output is the value. When it fails or prints nothing the
+variable stays unfilled, the error names why, and the command runs again
+the next time, so a value an earlier command of the run creates is found.
+Validation refuses a command that reads standard input, references an
+undeclared variable, or needs its own value through other variables'
+commands. A command with an unfilled
 variable never runs: the run names every missing value first. The page
 shows a variable as `<name>`.
 

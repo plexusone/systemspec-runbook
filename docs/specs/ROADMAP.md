@@ -22,6 +22,7 @@ Items carry stable IDs; phase status is derived from its items.
 - [x] **RMI-SYSTEMSPECRUNBOOK-014** Guided run of a step: refuse a blocked step, show each action with its variables filled, confirm and run commands, wait on console steps, stop at the first failure, record `started`, `failed` and `done`, then run the checks and record `verified`
 - [x] **RMI-SYSTEMSPECRUNBOOK-008** Cobra commands a host tool mounts: list, show, record, verify, run, doc, schema
 - [x] **RMI-SYSTEMSPECRUNBOOK-009** `runbookspec`, the command line over a runbook and log in JSON
+- [x] **RMI-SYSTEMSPECRUNBOOK-015** Variables from commands: a variable names the command whose output is its value, such as a stack's output, so a runbook kept as JSON runs with `runbookspec` and no host code; `--root` sets where commands run
 
 ## Phase 4: Release
 

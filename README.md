@@ -35,7 +35,9 @@ was done in an event log, and derives where each step stands.
   runs its checks. A new secret is generated in Go and piped straight into
   the program that stores it.
 - **Variables.** `{{name}}` in text, commands and checks, declared and
-  filled from flags, the host's providers or the environment.
+  filled from flags, the host's providers, the environment, or a command
+  the variable declares, such as `pulumi stack output staticIp`, so a
+  runbook kept as JSON needs no Go to read a stack's outputs.
 - **A generated page.** Markdown with each step's owner, actions, commands,
   credentials, when it is done and its checks. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
@@ -52,8 +54,11 @@ was done in an event log, and derives where each step stands.
 go install github.com/plexusone/systemspec-runbook/cmd/runbookspec@latest
 runbookspec list   --runbook runbook.json --events events.json
 runbookspec run 1.2 --runbook runbook.json --var profile=ops
-runbookspec verify --all --record --runbook runbook.json
+runbookspec verify --all --record --runbook runbook.json --root .
 ```
+
+`--root` is the directory commands run in, and their `dir` is relative
+to; it defaults to the current directory.
 
 A host tool mounts the same commands over its own runbook with
 `cli.New(cli.Options{Load: …, EventsPath: …, Named: …, Sources: …})`.
