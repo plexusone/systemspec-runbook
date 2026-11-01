@@ -68,7 +68,52 @@ func (rb *Runbook) Validate(opts ValidateOptions) error {
 			add("later: what and needs are required")
 		}
 	}
+	errs = append(errs, rb.validateVariables()...)
 	return errors.Join(errs...)
+}
+
+// validateVariables checks the declarations, and that every reference is
+// declared.
+func (rb *Runbook) validateVariables() []error {
+	var errs []error
+	declared := map[string]bool{}
+	for _, v := range rb.Variables {
+		switch {
+		case !varName.MatchString(v.Name):
+			errs = append(errs, fmt.Errorf("variable %q: a name is letters, digits, '.' and '_', starting with a letter", v.Name))
+		case declared[v.Name]:
+			errs = append(errs, fmt.Errorf("variable %s: declared twice", v.Name))
+		}
+		if v.Description == "" {
+			errs = append(errs, fmt.Errorf("variable %s: description is required", v.Name))
+		}
+		declared[v.Name] = true
+	}
+	check := func(where string, texts []string) {
+		var undeclared []string
+		for _, t := range texts {
+			for _, name := range References(t) {
+				if !declared[name] && !slices.Contains(undeclared, name) {
+					undeclared = append(undeclared, name)
+				}
+			}
+		}
+		for _, name := range undeclared {
+			errs = append(errs, fmt.Errorf("%s: references {{%s}}, which is not declared", where, name))
+		}
+	}
+	page := []string{rb.Summary, rb.Usage}
+	for _, p := range rb.Phases {
+		page = append(page, p.Summary, p.Gives)
+	}
+	for _, l := range rb.Later {
+		page = append(page, l.Needs)
+	}
+	check("runbook", page)
+	for _, s := range rb.Steps() {
+		check("step "+s.ID, s.strings())
+	}
+	return errs
 }
 
 // validate checks a step; seen holds the IDs of the steps before it.
@@ -104,14 +149,27 @@ func (s *Step) validate(phaseID string, seen map[string]bool, opts ValidateOptio
 		}
 	}
 	for i, a := range s.Actions {
-		if a.Text == "" && a.Command == "" {
-			add("action %d has neither text nor a command", i+1)
+		if a.Text == "" && a.Command == "" && len(a.Exec) == 0 {
+			add("action %d has no text, command or exec", i+1)
 		}
 		if a.Owner != "" && !validOwner(a.Owner) {
 			add("action %d: owner %q is not one of %v", i+1, a.Owner, Owners)
 		}
 		if a.Link != nil && (a.Link.Text == "" || (a.Link.Key == "") == (a.Link.Href == "")) {
 			add("action %d: a link needs text and exactly one of key and href", i+1)
+		}
+		for j, e := range a.Exec {
+			if len(e.Args) == 0 || e.Args[0] == "" {
+				add("action %d, command %d: needs a program", i+1, j+1)
+			}
+			if in := e.Stdin; in != nil {
+				switch {
+				case (len(in.From) > 0) == (in.RandomHex > 0):
+					add("action %d, command %d: stdin needs exactly one of from and randomHex", i+1, j+1)
+				case in.RandomHex > 0 && (in.RandomHex < 16 || in.RandomHex > 1024):
+					add("action %d, command %d: randomHex is 16 to 1024 bytes", i+1, j+1)
+				}
+			}
 		}
 	}
 	checks := map[string]bool{}

@@ -25,8 +25,8 @@ var CheckKinds = []CheckKind{KindDNS, KindHTTP, KindUnreachable, KindCommand, Ki
 // Check proves part of a step is done. Kind names it, and exactly the
 // field of that kind holds its parameters. A check only reads.
 //
-// Strings in the parameters may hold ${name} variables, which the runner
-// replaces with values known only at run time, such as a stack output.
+// Strings in the parameters may hold {{name}} variables, filled when the
+// check runs with values known only then, such as a stack's output.
 type Check struct {
 	// ID is unique within the step.
 	ID string `json:"id"`

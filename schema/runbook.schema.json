@@ -20,7 +20,14 @@
         },
         "command": {
           "type": "string",
-          "description": "Command is shell to run, shown as a code block."
+          "description": "Command is shown as a code block for a person to adapt and run; it\nis never run by the runbook. Use Exec for what a run executes."
+        },
+        "exec": {
+          "items": {
+            "$ref": "#/$defs/Exec"
+          },
+          "type": "array",
+          "description": "Exec are the commands a guided run executes, in order, and the page\nshows as a code block."
         },
         "link": {
           "$ref": "#/$defs/Link",
@@ -132,6 +139,38 @@
         "contains"
       ],
       "description": "DNSCheck passes when a lookup returns an answer containing each wanted string."
+    },
+    "Exec": {
+      "properties": {
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Args are the program and its arguments."
+        },
+        "dir": {
+          "type": "string",
+          "description": "Dir is the working directory, relative to the runbook's root."
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Env are environment variables added for the command."
+        },
+        "stdin": {
+          "$ref": "#/$defs/Stdin",
+          "description": "Stdin, when set, feeds the command's standard input."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "args"
+      ],
+      "description": "Exec is one command: a program and its arguments, never run through a shell, so it behaves the same on every platform."
     },
     "HTTPCheck": {
       "properties": {
@@ -280,6 +319,13 @@
           "type": "string",
           "description": "Usage explains how to use the runbook, in Markdown."
         },
+        "variables": {
+          "items": {
+            "$ref": "#/$defs/Variable"
+          },
+          "type": "array",
+          "description": "Variables are the names {{name}} may reference in text, commands\nand checks. Every reference must be declared."
+        },
         "phases": {
           "items": {
             "$ref": "#/$defs/Phase"
@@ -304,6 +350,24 @@
         "phases"
       ],
       "description": "Runbook is an ordered procedure: phases of steps."
+    },
+    "Stdin": {
+      "properties": {
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "From is a command, a program and its arguments, whose output is\npiped in, as \"a | b\" would in a shell."
+        },
+        "randomHex": {
+          "type": "integer",
+          "description": "RandomHex, when above zero, pipes in that many random bytes as\nhexadecimal, generated in Go and never shown or logged: a new secret\nthat goes straight to the program that stores it."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Stdin is what a command reads: another command's output, or a random value generated for it."
     },
     "Step": {
       "properties": {
@@ -399,6 +463,33 @@
         "address"
       ],
       "description": "UnreachableCheck passes when a connection to the address fails within the timeout."
+    },
+    "Variable": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is referenced as {{name}}: letters, digits, '.' and '_'."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description says what the value is."
+        },
+        "env": {
+          "type": "string",
+          "description": "Env, when set, is the environment variable that supplies the value\nwhen no flag or provider does."
+        },
+        "example": {
+          "type": "string",
+          "description": "Example is shown on the rendered page, such as \"us-west-2\"."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "description": "Variable is a value known only when a step runs, such as the profile to use or an address a stack created."
     }
   },
   "title": "Runbook",

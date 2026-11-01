@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -50,6 +51,11 @@ func (r *renderer) p(format string, args ...any) { fmt.Fprintf(&r.b, format, arg
 
 // text expands the references in Markdown text.
 func (r *renderer) text(s string) string {
+	return Placeholders(r.links(s))
+}
+
+// links expands the step and key references in s.
+func (r *renderer) links(s string) string {
 	return ref.ReplaceAllStringFunc(s, func(m string) string {
 		parts := ref.FindStringSubmatch(m)
 		key, label := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
@@ -184,8 +190,8 @@ func (r *renderer) actions(s *Step) {
 		if a.Text != "" {
 			r.p("%s%s\n\n", r.text(strings.TrimSpace(a.Text)), r.linkSuffix(a))
 		}
-		if a.Command != "" {
-			r.p("```bash\n%s\n```\n\n", strings.TrimSpace(a.Command))
+		if code := a.Code(); code != "" {
+			r.p("```bash\n%s\n```\n\n", code)
 		}
 		return
 	}
@@ -195,14 +201,104 @@ func (r *renderer) actions(s *Step) {
 			prefix = "**" + capitalize(ownerText(a.Owner)) + ":** "
 		}
 		r.p("%d. %s%s%s\n", i+1, prefix, indent(r.text(strings.TrimSpace(a.Text)), "    ", false), r.linkSuffix(a))
-		if a.Command != "" {
-			r.p("\n    ```bash\n%s\n    ```\n", indent(strings.TrimSpace(a.Command), "    ", true))
+		code := a.Code()
+		if code != "" {
+			r.p("\n    ```bash\n%s\n    ```\n", indent(code, "    ", true))
 		}
-		if i < len(s.Actions)-1 && a.Command != "" {
+		if i < len(s.Actions)-1 && code != "" {
 			r.p("\n")
 		}
 	}
 	r.p("\n")
+}
+
+// Code is the action's code block: its shown command, then its executable
+// commands as the shell lines that would do the same, with each variable
+// as <name>.
+func (a Action) Code() string {
+	var parts []string
+	if c := strings.TrimSpace(a.Command); c != "" {
+		parts = append(parts, c)
+	}
+	if len(a.Exec) > 0 {
+		parts = append(parts, ShellLines(a.Exec))
+	}
+	return Placeholders(strings.Join(parts, "\n"))
+}
+
+// ShellLines writes commands as the shell lines a person would type to do
+// the same: a cd and exports when the directory or environment changes, a
+// pipe for standard input, and arguments quoted where needed.
+func ShellLines(execs []Exec) string {
+	var lines []string
+	dir, env := "", map[string]string{}
+	for _, e := range execs {
+		if e.Dir != dir {
+			switch {
+			case dir == "":
+				lines = append(lines, "cd "+quote(e.Dir))
+			case e.Dir == "":
+				lines = append(lines, "cd -")
+			default:
+				lines = append(lines, "cd "+quote(relDir(dir, e.Dir)))
+			}
+			dir = e.Dir
+		}
+		var keys []string
+		for k, v := range e.Env {
+			if env[k] != v {
+				keys = append(keys, k)
+			}
+		}
+		if len(keys) > 0 {
+			slices.Sort(keys)
+			var assigns []string
+			for _, k := range keys {
+				assigns = append(assigns, k+"="+quote(e.Env[k]))
+				env[k] = e.Env[k]
+			}
+			lines = append(lines, "export "+strings.Join(assigns, " "))
+		}
+		cmd := quoteArgs(e.Args)
+		if in := e.Stdin; in != nil {
+			switch {
+			case len(in.From) > 0:
+				cmd = quoteArgs(in.From) + " | " + cmd
+			case in.RandomHex > 0:
+				cmd = fmt.Sprintf("openssl rand -hex %d | %s", in.RandomHex, cmd)
+			}
+		}
+		lines = append(lines, cmd)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// relDir is the cd from one directory under the root to another.
+func relDir(from, to string) string {
+	ups := strings.Repeat("../", strings.Count(strings.Trim(from, "/"), "/")+1)
+	return ups + to
+}
+
+func quoteArgs(args []string) string {
+	q := make([]string, len(args))
+	for i, a := range args {
+		q[i] = quote(a)
+	}
+	return strings.Join(q, " ")
+}
+
+var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./{}<>-]+$`)
+
+// quote single-quotes an argument a shell would split or expand. A
+// {{variable}} is kept as it is, so it reads as <name> on the page.
+func quote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	if shellSafe.MatchString(s) {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func (r *renderer) linkSuffix(a Action) string {

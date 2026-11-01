@@ -38,10 +38,27 @@ type Runbook struct {
 	Summary string `json:"summary"`
 	// Usage explains how to use the runbook, in Markdown.
 	Usage string `json:"usage,omitempty"`
+	// Variables are the names {{name}} may reference in text, commands
+	// and checks. Every reference must be declared.
+	Variables []Variable `json:"variables,omitempty"`
 	// Phases are done in order.
 	Phases []Phase `json:"phases"`
 	// Later is work that follows the runbook, listed at the end.
 	Later []Later `json:"later,omitempty"`
+}
+
+// Variable is a value known only when a step runs, such as the profile to
+// use or an address a stack created. A variable never holds a secret.
+type Variable struct {
+	// Name is referenced as {{name}}: letters, digits, '.' and '_'.
+	Name string `json:"name"`
+	// Description says what the value is.
+	Description string `json:"description"`
+	// Env, when set, is the environment variable that supplies the value
+	// when no flag or provider does.
+	Env string `json:"env,omitempty"`
+	// Example is shown on the rendered page, such as "us-west-2".
+	Example string `json:"example,omitempty"`
 }
 
 // Phase groups steps toward one result.
@@ -92,11 +109,41 @@ type Action struct {
 	Owner Owner `json:"owner,omitempty"`
 	// Text says what to do, in Markdown.
 	Text string `json:"text"`
-	// Command is shell to run, shown as a code block.
+	// Command is shown as a code block for a person to adapt and run; it
+	// is never run by the runbook. Use Exec for what a run executes.
 	Command string `json:"command,omitempty"`
+	// Exec are the commands a guided run executes, in order, and the page
+	// shows as a code block.
+	Exec []Exec `json:"exec,omitempty"`
 	// Link points into another page, resolved when the runbook is
 	// rendered, and is shown after the text.
 	Link *Link `json:"link,omitempty"`
+}
+
+// Exec is one command: a program and its arguments, never run through a
+// shell, so it behaves the same on every platform. Its strings may
+// reference variables.
+type Exec struct {
+	// Args are the program and its arguments.
+	Args []string `json:"args"`
+	// Dir is the working directory, relative to the runbook's root.
+	Dir string `json:"dir,omitempty"`
+	// Env are environment variables added for the command.
+	Env map[string]string `json:"env,omitempty"`
+	// Stdin, when set, feeds the command's standard input.
+	Stdin *Stdin `json:"stdin,omitempty"`
+}
+
+// Stdin is what a command reads: another command's output, or a random
+// value generated for it. Exactly one is set.
+type Stdin struct {
+	// From is a command, a program and its arguments, whose output is
+	// piped in, as "a | b" would in a shell.
+	From []string `json:"from,omitempty"`
+	// RandomHex, when above zero, pipes in that many random bytes as
+	// hexadecimal, generated in Go and never shown or logged: a new secret
+	// that goes straight to the program that stores it.
+	RandomHex int `json:"randomHex,omitempty"`
 }
 
 // Link is a link resolved when the runbook is rendered, so a section
