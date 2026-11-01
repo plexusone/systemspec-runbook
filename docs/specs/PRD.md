@@ -40,13 +40,19 @@ event log, derives where each step stands, and runs its checks.
    in a console: DNS answers, HTTP statuses, addresses that must not
    answer, command results, and checks a program registers by name.
 5. **JSON Schemas** of a runbook and of its log, generated from the types.
-6. **A command line** over JSON files, and Cobra commands a host tool mounts
+6. **Guided runs.** A step's commands run from the runbook itself, with its
+   variables filled and each command confirmed, console steps waited on,
+   progress recorded and the checks run after, so nothing is copied by hand.
+7. **A command line** over JSON files, and Cobra commands a host tool mounts
    over its own runbook.
 
 ## Non-goals
 
 - **A workflow engine.** Nothing runs steps on a schedule or on its own; a
-  person or an agent runs each one.
+  person or an agent starts each one, and a guided run confirms each command
+  unless told the step is rehearsed.
+- **A shell.** Commands are programs and arguments; pipes and generated
+  values are structured, so a run behaves the same on every platform.
 - **Secrets.** No type holds a value; checks read names, settings and
   public answers; the log refuses notes that look like secrets.
 - **Automating console steps.** A step done once in a console keeps an
