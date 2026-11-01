@@ -2,6 +2,7 @@
 
 [![Go CI][go-ci-svg]][go-ci-url]
 [![Go Lint][go-lint-svg]][go-lint-url]
+[![Go SAST][go-sast-svg]][go-sast-url]
 [![Docs][docs-godoc-svg]][docs-godoc-url]
 [![License][license-svg]][license-url]
 
@@ -9,6 +10,8 @@
  [go-ci-url]: https://github.com/plexusone/systemspec-runbook/actions/workflows/go-ci.yaml
  [go-lint-svg]: https://github.com/plexusone/systemspec-runbook/actions/workflows/go-lint.yaml/badge.svg?branch=main
  [go-lint-url]: https://github.com/plexusone/systemspec-runbook/actions/workflows/go-lint.yaml
+ [go-sast-svg]: https://github.com/plexusone/systemspec-runbook/actions/workflows/go-sast-codeql.yaml/badge.svg?branch=main
+ [go-sast-url]: https://github.com/plexusone/systemspec-runbook/actions/workflows/go-sast-codeql.yaml
  [docs-godoc-svg]: https://pkg.go.dev/badge/github.com/plexusone/systemspec-runbook
  [docs-godoc-url]: https://pkg.go.dev/github.com/plexusone/systemspec-runbook
  [license-svg]: https://img.shields.io/badge/license-MIT-blue.svg
