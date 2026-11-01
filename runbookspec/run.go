@@ -168,7 +168,7 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 						return fmt.Errorf("runbook: %s", msg)
 					}
 				}
-				r.say("\n  $ %s", p.Line)
+				r.say("\n%s", prompted(p.Line))
 				if !r.Yes {
 					ok, err := r.Prompt("  Run this command?")
 					if err != nil {
@@ -368,6 +368,11 @@ func compact(sorted []string) []string {
 		}
 	}
 	return out
+}
+
+// prompted shows a command's shell lines as typed at a prompt.
+func prompted(lines string) string {
+	return "  $ " + strings.ReplaceAll(lines, "\n", "\n  $ ")
 }
 
 func indentLines(s, pad string) string {

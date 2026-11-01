@@ -109,7 +109,7 @@ func TestRunConfirmsRunsRecordsAndVerifies(t *testing.T) {
 		t.Errorf("asked = %v", h.asked)
 	}
 	out := h.out.String()
-	for _, want := range []string{"Create it as ops.", "$ cd stack", "pass it answers: fine"} {
+	for _, want := range []string{"Create it as ops.", "  $ cd stack\n  $ export AWS_PROFILE=ops\n  $ pulumi stack init prod", "pass it answers: fine"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
