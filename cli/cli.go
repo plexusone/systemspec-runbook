@@ -56,6 +56,7 @@ func New(o Options) *cobra.Command {
 	c := &commands{o: o}
 	root := &cobra.Command{Use: o.Use, Short: o.Short}
 	root.PersistentFlags().StringVar(&c.o.EventsPath, "events", o.EventsPath, "the runbook's event log (JSON); missing means no events yet")
+	root.PersistentFlags().StringVar(&c.o.Root, "root", o.Root, "the directory commands run in, and their dir is relative to")
 	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.run(), c.doc(), c.schema())
 	return root
 }
@@ -89,7 +90,9 @@ func (c *commands) values(r *rb.Runbook, flags []string) (*rb.Values, error) {
 		}
 		given[k] = v
 	}
-	return rb.NewValues(r, append([]rb.Source{rb.MapSource(given)}, c.o.Sources...)...), nil
+	v := rb.NewValues(r, append([]rb.Source{rb.MapSource(given)}, c.o.Sources...)...)
+	v.Root = c.o.Root
+	return v, nil
 }
 
 // save writes the log atomically, creating its directory on the first
