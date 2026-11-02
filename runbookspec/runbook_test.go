@@ -198,3 +198,18 @@ func TestRedactKeepsAFailureRecordable(t *testing.T) {
 		t.Error("an unredacted note was accepted")
 	}
 }
+
+// A home directory in a runner's note becomes "~", whoever's it is. The
+// paths are built from parts so that no home directory is written here.
+func TestRedactLeavesNoHomeDirectory(t *testing.T) {
+	for _, home := range []string{"/" + "Users/someone", "/" + "home/someone", `C:` + `\Users\someone`} {
+		msg := "action 1, command 2 (" + home + "/repo/release.sh) failed: exit status 1"
+		got := Redact(msg)
+		if strings.Contains(got, "someone") || !strings.Contains(got, "~") || !strings.Contains(got, "release.sh) failed") {
+			t.Errorf("Redact(%q) = %q", msg, got)
+		}
+	}
+	if got := Redact("bin/tool failed in /opt/app"); got != "bin/tool failed in /opt/app" {
+		t.Errorf("a path outside a home directory changed: %q", got)
+	}
+}

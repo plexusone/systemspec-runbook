@@ -95,11 +95,18 @@ var secretLike = regexp.MustCompile(`-----BEGIN|github_pat_|gh[pousr]_[A-Za-z0-9
 // Withheld replaces what Redact removes from a note.
 const Withheld = "[withheld]"
 
+// homeDir matches a home directory at the start of a path, on macOS, Linux
+// or Windows, which names the person and their machine's layout.
+var homeDir = regexp.MustCompile(`(?:/Users|/home)/[^/\s"':;,()]+|[A-Za-z]:\\Users\\[^\\/\s"':;,()]+`)
+
 // Redact replaces each part of s that looks like a secret with Withheld,
-// for a note the runner writes itself, such as a failed command's error.
+// and a home directory with "~", for a note the runner writes itself, such
+// as a failed command's error, which can name a command by its full path.
 // A long path matches as well as a token does, and a note a person types is
 // refused instead, so they describe it.
-func Redact(s string) string { return secretLike.ReplaceAllString(s, Withheld) }
+func Redact(s string) string {
+	return secretLike.ReplaceAllString(homeDir.ReplaceAllString(s, "~"), Withheld)
+}
 
 // Append checks the event against the runbook and adds it.
 func (l *Log) Append(rb *Runbook, e Event) error {
