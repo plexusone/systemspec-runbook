@@ -162,7 +162,7 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 					var err error
 					if p, err = r.prepareOne(ctx, a.Exec[j]); err != nil {
 						msg := fmt.Sprintf("action %d, command %d: %v", i+1, j+1, err)
-						if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: msg}); rerr != nil {
+						if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: Redact(msg)}); rerr != nil {
 							return errors.Join(err, rerr)
 						}
 						return fmt.Errorf("runbook: %s", msg)
@@ -180,7 +180,7 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 				}
 				if err := r.Exec(ctx, p, r.Stdin, r.Out, r.Out); err != nil {
 					msg := fmt.Sprintf("action %d, command %d (%s) failed: %v", i+1, j+1, p.Args[0], err)
-					if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: msg}); rerr != nil {
+					if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: Redact(msg)}); rerr != nil {
 						return errors.Join(err, rerr)
 					}
 					return fmt.Errorf("runbook: %s", msg)

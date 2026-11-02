@@ -92,6 +92,15 @@ func (l *Log) Marshal() ([]byte, error) {
 // long random strings.
 var secretLike = regexp.MustCompile(`-----BEGIN|github_pat_|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|[A-Za-z0-9+/_=-]{40,}`)
 
+// Withheld replaces what Redact removes from a note.
+const Withheld = "[withheld]"
+
+// Redact replaces each part of s that looks like a secret with Withheld,
+// for a note the runner writes itself, such as a failed command's error.
+// A long path matches as well as a token does, and a note a person types is
+// refused instead, so they describe it.
+func Redact(s string) string { return secretLike.ReplaceAllString(s, Withheld) }
+
 // Append checks the event against the runbook and adds it.
 func (l *Log) Append(rb *Runbook, e Event) error {
 	if rb.Step(e.Step) == nil {
