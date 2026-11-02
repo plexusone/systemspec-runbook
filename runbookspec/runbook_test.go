@@ -180,3 +180,21 @@ func TestLogRoundTrip(t *testing.T) {
 		t.Errorf("empty log = %s", empty)
 	}
 }
+
+// A note the runner writes from a command's error is redacted, not refused,
+// so the failure is still recorded; a long path matches like a token.
+func TestRedactKeepsAFailureRecordable(t *testing.T) {
+	msg := "action 3, command 2 (/opt/build/example/ProductRepo/ops/host/release.sh) failed: exit status 1; token github_pat_11ABCDEFGHIJKLMNOPQRST"
+	got := Redact(msg)
+	if strings.Contains(got, "github_pat_") || strings.Contains(got, "ProductRepo/ops/host/release") || !strings.Contains(got, "failed: exit status 1") || !strings.Contains(got, Withheld) {
+		t.Errorf("Redact = %q", got)
+	}
+	rb := &Runbook{ID: "r", Title: "R", Phases: []Phase{{ID: "1", Title: "P", Gives: "g", Steps: []Step{{ID: "1.1", Title: "S", Owner: OwnerOperator, Done: "d"}}}}}
+	l := &Log{}
+	if err := l.Append(rb, Event{Step: "1.1", Type: EventFailed, At: time.Now(), Note: got}); err != nil {
+		t.Errorf("a redacted note was refused: %v", err)
+	}
+	if err := l.Append(rb, Event{Step: "1.1", Type: EventFailed, At: time.Now(), Note: msg}); err == nil {
+		t.Error("an unredacted note was accepted")
+	}
+}
