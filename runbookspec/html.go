@@ -227,6 +227,7 @@ pre code { background: none; padding: 0; }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
 th, td { border: 1px solid var(--line); padding: 0.4rem 0.7rem; text-align: left; vertical-align: top; }
 th { background: var(--code); }
+td > p:only-child, td > p:first-child { margin-top: 0; } td > p:last-child { margin-bottom: 0; }
 td code { word-break: break-word; }
 blockquote { margin: 1rem 0; padding: 0 1rem; color: var(--muted); border-left: 4px solid var(--line); }
 li + li { margin-top: 0.25rem; }
