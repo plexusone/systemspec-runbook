@@ -42,9 +42,12 @@ was done in an event log, and derives where each step stands.
   the variable declares, such as `pulumi stack output staticIp`, so a
   runbook kept as JSON needs no Go to read a stack's outputs.
 - **A generated page.** Markdown or HTML with each step's owner, actions,
-  commands, credentials, when it is done and its checks. The HTML is a
-  whole page styled for light and dark themes, or its body alone for a
-  host's own page; raw HTML in a runbook's text is never passed through. Text links to a step with
+  commands, credentials, when it is done and its checks. The HTML is built
+  from the runbook with [templ](https://templ.guide) components: a
+  full-width page styled for light and dark themes, each step a section
+  with its owner's badge, or its body alone for a host's own page. Text
+  fields are Markdown, converted without passing raw HTML through, and
+  step anchors match the Markdown page's. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
   or generated section number is typed by hand.
 - **Link checks.** `BrokenLinks` reports relative links whose file or

@@ -23,6 +23,7 @@ Items carry stable IDs; phase status is derived from its items.
 - [x] **RMI-SYSTEMSPECRUNBOOK-008** Cobra commands a host tool mounts: list, show, record, verify, run, doc, schema
 - [x] **RMI-SYSTEMSPECRUNBOOK-009** `runbookspec`, the command line over a runbook and log in JSON
 - [x] **RMI-SYSTEMSPECRUNBOOK-016** HTML pages: the Markdown page as a styled HTML document, or its body for a host's page; `doc --html`
+- [x] **RMI-SYSTEMSPECRUNBOOK-018** HTML from templ components: the runbook rendered straight to a full-width page, steps as sections with owner badges, anchors shared with the Markdown page
 - [x] **RMI-SYSTEMSPECRUNBOOK-017** A host's events flag: the commands' event log flag renamed when the host has an events flag of its own
 - [x] **RMI-SYSTEMSPECRUNBOOK-015** Variables from commands: a variable names the command whose output is its value, such as a stack's output, so a runbook kept as JSON runs with `runbookspec` and no host code; `--root` sets where commands run
 
