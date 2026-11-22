@@ -15,4 +15,5 @@ require (
 	github.com/pb33f/go-yaml v0.2.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/spf13/pflag v1.1.0 // indirect
+	github.com/yuin/goldmark v1.8.7 // indirect
 )
