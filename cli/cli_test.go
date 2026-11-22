@@ -174,3 +174,19 @@ func TestVariableFromCommand(t *testing.T) {
 		t.Fatalf("verify: %v\n%s", err, out.String())
 	}
 }
+
+func TestDocHTML(t *testing.T) {
+	e := newEnv(t)
+	out, err := e.exec(t, "", "doc", "--html")
+	if err != nil || !strings.HasPrefix(out, "<!doctype html>") || !strings.Contains(out, "</html>") {
+		t.Errorf("doc --html: %v\n%s", err, out)
+	}
+}
+
+func TestEventsFlagCanBeRenamed(t *testing.T) {
+	e := newEnv(t)
+	cmd := New(Options{Load: func() (*rb.Runbook, error) { return testRunbook(), nil }, EventsPath: e.events, EventsFlag: "progress", Root: e.dir})
+	if cmd.PersistentFlags().Lookup("events") != nil || cmd.PersistentFlags().Lookup("progress") == nil {
+		t.Error("the events flag was not renamed")
+	}
+}
