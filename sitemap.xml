@@ -2,26 +2,34 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
     </url>
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/guides/getting-started/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
+    </url>
+    <url>
+         <loc>https://plexusone.github.io/systemspec-runbook/releases/changelog/</loc>
+         <lastmod>2026-11-22</lastmod>
+    </url>
+    <url>
+         <loc>https://plexusone.github.io/systemspec-runbook/releases/v0.1.0/</loc>
+         <lastmod>2026-11-22</lastmod>
     </url>
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/specs/PLAN/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
     </url>
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/specs/PRD/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
     </url>
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/specs/ROADMAP/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
     </url>
     <url>
          <loc>https://plexusone.github.io/systemspec-runbook/specs/TRD/</loc>
-         <lastmod>2026-11-21</lastmod>
+         <lastmod>2026-11-22</lastmod>
     </url>
 </urlset>
