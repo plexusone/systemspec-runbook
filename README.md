@@ -41,8 +41,10 @@ was done in an event log, and derives where each step stands.
   filled from flags, the host's providers, the environment, or a command
   the variable declares, such as `pulumi stack output staticIp`, so a
   runbook kept as JSON needs no Go to read a stack's outputs.
-- **A generated page.** Markdown with each step's owner, actions, commands,
-  credentials, when it is done and its checks. Text links to a step with
+- **A generated page.** Markdown or HTML with each step's owner, actions,
+  commands, credentials, when it is done and its checks. The HTML is a
+  whole page styled for light and dark themes, or its body alone for a
+  host's own page; raw HTML in a runbook's text is never passed through. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
   or generated section number is typed by hand.
 - **Link checks.** `BrokenLinks` reports relative links whose file or
@@ -90,7 +92,7 @@ The package example in `runbookspec/example_test.go` is a complete program.
 |---|---|
 | `runbookspec` | The model, validation, the event log and derived state, rendering and link checks |
 | `schema` | The JSON Schemas of a runbook and its log, embedded; `go generate ./schema` rewrites them |
-| `cli` | The Cobra commands a host tool mounts: validate, list, show, record, verify, run, doc, schema |
+| `cli` | The Cobra commands a host tool mounts: validate, list, show, record, verify, run, doc (`--html` for HTML), schema; a host can rename the events flag |
 | `cmd/runbookspec` | The same commands over a runbook kept as JSON |
 
 ## Documentation
