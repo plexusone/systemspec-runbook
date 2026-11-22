@@ -9,6 +9,37 @@
   ],
   "releases": [
     {
+      "version": "v0.2.0",
+      "date": "2026-11-22",
+      "highlights": [
+        {
+          "description": "HTML pages are built from the runbook with templ components: full width, each step a section with its owner's badge, a copy button on every command, anchors shared with the Markdown page"
+        }
+      ],
+      "changed": [
+        {
+          "description": "`Runbook.HTML` renders the runbook directly with templ components instead of converting its Markdown page: a full-width page, the phase summary as a table, each step a section with owner badges, its dependencies linked, its actions numbered with their commands escaped, and its credentials, done sentence and checks. Text fields are still Markdown, converted without raw HTML",
+          "commit": "4ee4dc8"
+        },
+        {
+          "description": "`Style` uses the window's full width and adds step and badge styles",
+          "commit": "4ee4dc8"
+        }
+      ],
+      "dependencies": [
+        {
+          "description": "Requires github.com/a-h/templ v0.3.1118; `go generate ./runbookspec` regenerates the components with that version",
+          "commit": "4ee4dc8"
+        }
+      ],
+      "added": [
+        {
+          "description": "A copy button on every code block of the HTML page, for pasting a command into a terminal; `Script` is the script, for hosts that place the fragment in their own page",
+          "commit": "cb541bf"
+        }
+      ]
+    },
+    {
       "version": "v0.1.0",
       "date": "2026-11-22",
       "highlights": [

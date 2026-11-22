@@ -45,7 +45,8 @@ was done in an event log, and derives where each step stands.
   commands, credentials, when it is done and its checks. The HTML is built
   from the runbook with [templ](https://templ.guide) components: a
   full-width page styled for light and dark themes, each step a section
-  with its owner's badge, or its body alone for a host's own page. Text
+  with its owner's badge and a copy button on every command, or its body
+  alone for a host's own page. Text
   fields are Markdown, converted without passing raw HTML through, and
   step anchors match the Markdown page's. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
@@ -104,7 +105,7 @@ The [getting-started guide](docs/guides/getting-started.md) walks through
 declaring, rendering, recording, checking and running a runbook; the
 [specs](docs/specs/PRD.md) describe the design and the
 [roadmap](docs/specs/ROADMAP.md) what comes next. Each release has
-[notes](docs/releases/v0.1.0.md), and the [changelog](CHANGELOG.md) lists
+[notes](docs/releases/v0.2.0.md), and the [changelog](CHANGELOG.md) lists
 them all.
 
 ## License
