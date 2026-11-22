@@ -26,7 +26,7 @@ func TestHTML(t *testing.T) {
 			t.Errorf("the page lacks %q", want)
 		}
 	}
-	if strings.Contains(s, "<script>") {
+	if strings.Contains(s, "<script>alert(1)") || !strings.Contains(s, "&lt;script&gt;alert(1)") {
 		t.Error("raw HTML in the runbook's text reached the page")
 	}
 	frag, err := htmlRunbook().HTML(HTMLOptions{Fragment: true})
@@ -72,5 +72,26 @@ func TestHTMLStepsAnchorsAndCommands(t *testing.T) {
 	}
 	if _, err := (&Runbook{ID: "x", Title: "x", Summary: "[[step:9.9]]", Phases: r.Phases}).HTML(HTMLOptions{}); err == nil {
 		t.Error("a reference to a missing step was rendered")
+	}
+}
+
+func TestHTMLCopiesCommands(t *testing.T) {
+	page, err := htmlRunbook().HTML(HTMLOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(page)
+	if !strings.Contains(s, "<script>") || !strings.Contains(s, "navigator.clipboard") || !strings.Contains(s, ".copy {") {
+		t.Error("the page has no copy buttons")
+	}
+	if strings.Index(s, "<script>") < strings.Index(s, "</main>") {
+		t.Error("the script runs before the code blocks exist")
+	}
+	frag, err := htmlRunbook().HTML(HTMLOptions{Fragment: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(frag), "<script>") {
+		t.Error("a fragment carries the script; its host includes Script")
 	}
 }
