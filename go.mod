@@ -3,6 +3,7 @@ module github.com/plexusone/systemspec-runbook
 go 1.26.0
 
 require (
+	github.com/a-h/templ v0.3.1118
 	github.com/grokify/oscompat v0.13.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/spf13/cobra v1.10.2

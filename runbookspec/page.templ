@@ -1,0 +1,144 @@
+package runbookspec
+
+// pageDocument is the whole HTML document: its head, style and body.
+templ pageDocument(v pageView) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			if v.Generator != "" {
+				<meta name="generator" content={ v.Generator }/>
+			}
+			<title>{ v.Title }</title>
+			@templ.Raw("<style>\n" + Style + "\n</style>")
+		</head>
+		<body>
+			<main>
+				@pageBody(v)
+			</main>
+		</body>
+	</html>
+}
+
+// pageBody is the runbook itself, for a host's own page.
+templ pageBody(v pageView) {
+	<h1>{ v.Title }</h1>
+	@v.Summary
+	if v.Usage != nil {
+		<h2 id="how-to-use-it">How to Use It</h2>
+		@v.Usage
+	}
+	<h2 id="summary">Summary</h2>
+	<table>
+		<thead>
+			<tr><th>Phase</th><th>Steps</th><th>What it gives you</th></tr>
+		</thead>
+		<tbody>
+			for _, ph := range v.Phases {
+				<tr>
+					<td><a href={ templ.SafeURL("#" + ph.Anchor) }>{ ph.Heading }</a></td>
+					<td>{ len(ph.Steps) }</td>
+					<td>@ph.Gives</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+	for _, ph := range v.Phases {
+		<h2 id={ ph.Anchor }>{ ph.Heading }</h2>
+		if ph.Summary != nil {
+			@ph.Summary
+		}
+		for _, s := range ph.Steps {
+			@step(s)
+		}
+	}
+	if len(v.Later) > 0 {
+		<h2 id="later">Later</h2>
+		<table>
+			<thead>
+				<tr><th>What</th><th>Needs</th></tr>
+			</thead>
+			<tbody>
+				for _, l := range v.Later {
+					<tr><td>{ l.What }</td><td>@l.Needs</td></tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+// step is one step: its owner and dependencies, actions, notes, the
+// credentials it creates, when it is done, and its checks.
+templ step(s stepView) {
+	<section class="step" id={ s.Anchor }>
+		<h3>{ s.Heading }</h3>
+		<div class="meta">
+			<span class={ "badge", s.Owner }>{ s.Owner }</span>
+			if s.Gate {
+				<span class="badge">gate</span>
+			}
+			if len(s.After) > 0 {
+				<span>
+					after
+					for i, a := range s.After {
+						if i > 0 {
+							,
+						}
+						<a href={ templ.SafeURL(a.Href) }>{ a.Text }</a>
+					}
+				</span>
+			}
+		</div>
+		if s.Summary != nil {
+			@s.Summary
+		}
+		if len(s.Actions) > 0 {
+			<ol class="actions">
+				for _, a := range s.Actions {
+					<li>
+						if a.Owner != "" {
+							<span class={ "badge", a.Owner }>{ a.Owner }</span>
+						}
+						@a.Text
+						if a.Link != nil {
+							<p>See <a href={ templ.SafeURL(a.Link.Href) }>{ a.Link.Text }</a>.</p>
+						}
+						if a.Code != "" {
+							<pre><code>{ a.Code }</code></pre>
+						}
+					</li>
+				}
+			</ol>
+		}
+		for _, n := range s.Notes {
+			@n
+		}
+		if len(s.Credentials) > 0 {
+			<p>
+				<span class="label">Creates:</span>
+				for i, c := range s.Credentials {
+					if i > 0 {
+						,
+					}
+					<code>{ c }</code>
+				}
+			</p>
+		}
+		<div><span class="label">Done when</span> @s.Done</div>
+		if len(s.Checks) > 0 {
+			<p>
+				<span class="label">Checks</span>
+				if s.VerifyCommand != "" {
+					(<code>{ s.VerifyCommand }</code>)
+				}
+				:
+			</p>
+			<ul>
+				for _, c := range s.Checks {
+					<li>@c</li>
+				}
+			</ul>
+		}
+	</section>
+}
