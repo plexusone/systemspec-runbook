@@ -10,7 +10,7 @@ func htmlRunbook() *Runbook {
 		ID: "setup", Title: "Example <setup>", Summary: "Set up `example`. <script>alert(1)</script>",
 		Phases: []Phase{{ID: "1", Title: "First", Gives: "a start", Steps: []Step{{
 			ID: "1.1", Title: "Make the key", Owner: OwnerOperator, Done: "The key exists.",
-			Actions: []Action{{Text: "Run it:", Exec: []Exec{{Args: []string{"example", "make"}}}}},
+			Actions: []Action{{Text: "Run it:", Exec: []Exec{{Args: []string{"example", "make"}}}}, {Text: "Paste the <client ID> into `--id <id>`; see <https://example.com/docs>."}},
 		}}}},
 	}
 }
@@ -21,7 +21,7 @@ func TestHTML(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(page)
-	for _, want := range []string{"<!doctype html>", "<title>Example &lt;setup&gt;</title>", "<code>example</code>", "example make", "prefers-color-scheme: dark", "<table>"} {
+	for _, want := range []string{"Paste the &lt;client ID&gt;", "<code>--id &lt;id&gt;</code>", `<a href="https://example.com/docs">`, "<!doctype html>", "<title>Example &lt;setup&gt;</title>", "<code>example</code>", "example make", "prefers-color-scheme: dark", "<table>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the page lacks %q", want)
 		}

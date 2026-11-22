@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -33,7 +34,7 @@ func (rb *Runbook) HTML(opts HTMLOptions) ([]byte, error) {
 		return nil, err
 	}
 	var body bytes.Buffer
-	if err := markdown.Convert(md, &body); err != nil {
+	if err := markdown.Convert(escapeAngles(md), &body); err != nil {
 		return nil, fmt.Errorf("runbook: rendering HTML: %w", err)
 	}
 	if opts.Fragment {
@@ -80,3 +81,40 @@ th, td { border: 1px solid var(--line); padding: 0.4rem 0.7rem; text-align: left
 th { background: var(--code); }
 blockquote { margin: 1rem 0; padding: 0 1rem; color: var(--muted); border-left: 4px solid var(--line); }
 li + li { margin-top: 0.25rem; }`
+
+// escapeAngles writes < outside code as &lt;, so a placeholder such as
+// <value> in a step's text is shown rather than dropped as raw HTML. Code
+// spans and fenced or indented code blocks are left as they are, as are
+// autolinks such as <https://example.com>.
+func escapeAngles(md []byte) []byte {
+	lines := strings.Split(string(md), "\n")
+	fenced := false
+	for i, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fenced = !fenced
+			continue
+		}
+		if fenced || strings.HasPrefix(l, "    ") || strings.HasPrefix(l, "\t") {
+			continue
+		}
+		parts := strings.Split(l, "`")
+		for j := 0; j < len(parts); j += 2 {
+			parts[j] = escapeText(parts[j])
+		}
+		lines[i] = strings.Join(parts, "`")
+	}
+	return []byte(strings.Join(lines, "\n"))
+}
+
+func escapeText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '<' && !strings.HasPrefix(s[i+1:], "http://") && !strings.HasPrefix(s[i+1:], "https://") {
+			b.WriteString("&lt;")
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
