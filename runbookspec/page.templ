@@ -17,6 +17,7 @@ templ pageDocument(v pageView) {
 			<main>
 				@pageBody(v)
 			</main>
+			@templ.Raw("<script>\n" + Script + "\n</script>")
 		</body>
 	</html>
 }

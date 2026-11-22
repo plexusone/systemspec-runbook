@@ -236,4 +236,50 @@ li + li { margin-top: 0.25rem; }
 .badge.operator { color: var(--operator); } .badge.agent { color: var(--agent); } .badge.both { color: var(--both); }
 .actions { padding-left: 1.4rem; }
 .actions > li > p:first-of-type { display: inline; }
-.label { font-weight: 600; }`
+.label { font-weight: 600; }
+pre { position: relative; padding-right: 3rem; }
+.copy { position: absolute; top: 0.35rem; right: 0.35rem; display: inline-flex; align-items: center; gap: 0.25rem;
+  font: 600 0.75rem system-ui, sans-serif; color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 0.2rem 0.4rem; cursor: pointer; }
+.copy:hover, .copy:focus-visible { color: var(--fg); border-color: var(--muted); }
+.copy svg { width: 14px; height: 14px; fill: currentColor; }
+.copy.done { color: var(--agent); border-color: var(--agent); }`
+
+// Script adds a copy button to every code block, for pasting a command
+// into a terminal. It copies the block's text as it is, with the
+// clipboard API, or where that is not offered, as on some pages opened
+// from a file, with a selection. A host that places the fragment in its
+// own page includes it after the fragment.
+const Script = `(function () {
+  var icon = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>';
+  function fallback(text) {
+    var t = document.createElement('textarea');
+    t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(t);
+    return ok;
+  }
+  function copy(text, button) {
+    var shown = function (ok) {
+      button.classList.toggle('done', ok);
+      button.lastChild.textContent = ok ? 'Copied' : 'Select and copy';
+      setTimeout(function () { button.classList.remove('done'); button.lastChild.textContent = 'Copy'; }, 1600);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { shown(true); }, function () { shown(fallback(text)); });
+    } else {
+      shown(fallback(text));
+    }
+  }
+  document.querySelectorAll('pre > code').forEach(function (code) {
+    var pre = code.parentNode;
+    if (pre.querySelector('.copy')) { return; }
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'copy'; b.title = 'Copy to the clipboard'; b.setAttribute('aria-label', 'Copy the command');
+    b.innerHTML = icon + '<span>Copy</span>';
+    b.addEventListener('click', function () { copy(code.innerText.replace(/\n$/, ''), b); });
+    pre.appendChild(b);
+  });
+})();`
