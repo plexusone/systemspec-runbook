@@ -29,6 +29,9 @@ type Options struct {
 	Load func() (*rb.Runbook, error)
 	// EventsPath is the event log; a missing file is an empty log.
 	EventsPath string
+	// EventsFlag names the flag that sets EventsPath; "events" when empty.
+	// A host tool with an events flag of its own names this one otherwise.
+	EventsFlag string
 	// Render returns the options doc renders with: link resolver,
 	// verify command and generator. Nil renders without them.
 	Render func() (rb.RenderOptions, error)
@@ -55,7 +58,10 @@ func New(o Options) *cobra.Command {
 	}
 	c := &commands{o: o}
 	root := &cobra.Command{Use: o.Use, Short: o.Short}
-	root.PersistentFlags().StringVar(&c.o.EventsPath, "events", o.EventsPath, "the runbook's event log (JSON); missing means no events yet")
+	if o.EventsFlag == "" {
+		o.EventsFlag = "events"
+	}
+	root.PersistentFlags().StringVar(&c.o.EventsPath, o.EventsFlag, o.EventsPath, "the runbook's event log (JSON); missing means no events yet")
 	root.PersistentFlags().StringVar(&c.o.Root, "root", o.Root, "the directory commands run in, and their dir is relative to")
 	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.run(), c.doc(), c.schema())
 	return root
@@ -312,9 +318,10 @@ func (c *commands) run() *cobra.Command {
 
 func (c *commands) doc() *cobra.Command {
 	var out string
+	var asHTML bool
 	cmd := &cobra.Command{
 		Use:   "doc",
-		Short: "Write the runbook's page, generated from its declaration",
+		Short: "Write the runbook's page, generated from its declaration, as Markdown or with --html as HTML",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r, err := c.o.Load()
@@ -327,7 +334,12 @@ func (c *commands) doc() *cobra.Command {
 					return err
 				}
 			}
-			page, err := r.Markdown(opts)
+			var page []byte
+			if asHTML {
+				page, err = r.HTML(rb.HTMLOptions{RenderOptions: opts})
+			} else {
+				page, err = r.Markdown(opts)
+			}
 			if err != nil {
 				return err
 			}
@@ -335,6 +347,7 @@ func (c *commands) doc() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&out, "output", "o", "", "file to write; standard output when empty")
+	cmd.Flags().BoolVar(&asHTML, "html", false, "write an HTML page instead of Markdown")
 	return cmd
 }
 
