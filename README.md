@@ -100,7 +100,9 @@ The package example in `runbookspec/example_test.go` is a complete program.
 The [getting-started guide](docs/guides/getting-started.md) walks through
 declaring, rendering, recording, checking and running a runbook; the
 [specs](docs/specs/PRD.md) describe the design and the
-[roadmap](docs/specs/ROADMAP.md) what comes next.
+[roadmap](docs/specs/ROADMAP.md) what comes next. Each release has
+[notes](docs/releases/v0.1.0.md), and the [changelog](CHANGELOG.md) lists
+them all.
 
 ## License
 

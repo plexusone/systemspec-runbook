@@ -1,0 +1,59 @@
+{
+  "irVersion": "1.0",
+  "project": "systemspec-runbook",
+  "repository": "https://github.com/plexusone/systemspec-runbook",
+  "versioning": "semver",
+  "commitConvention": "conventional",
+  "maintainers": [
+    "grokify"
+  ],
+  "releases": [
+    {
+      "version": "v0.1.0",
+      "date": "2026-11-22",
+      "highlights": [
+        {
+          "description": "A runbook as data: phases of steps with owners, dependencies, actions and typed checks, validated, rendered as Markdown or HTML, recorded in an event log, and run step by step"
+        }
+      ],
+      "added": [
+        {
+          "description": "The runbook model: phases, steps with an owner (operator, agent or both), dependencies, actions, a done sentence, checks and the credentials a step creates, with validation reporting every problem",
+          "commit": "d0dca40"
+        },
+        {
+          "description": "An event log and each step's derived state: blocked, ready, in-progress, done or verified",
+          "commit": "2bdd4a4"
+        },
+        {
+          "description": "Typed checks: dns, http, unreachable, command, and named checks a host registers in Go; checks only read, and report pass, fail or skip",
+          "commit": "0086b59"
+        },
+        {
+          "description": "Variables: declared {{name}} references in text, commands and checks, filled from flags, providers, the environment, or a command the variable declares",
+          "commit": "1f30a1e"
+        },
+        {
+          "description": "Guided runs: show each action with its variables filled, confirm and run commands without a shell, wait on a person's steps, stop at the first failure, record the step and run its checks; a new secret is generated in Go and piped to the program that stores it",
+          "commit": "d2ef546"
+        },
+        {
+          "description": "A Markdown page with step and key links that never need anchors typed by hand, and a check for broken relative links",
+          "commit": "be49ba2"
+        },
+        {
+          "description": "An HTML page: the Markdown page styled for light and dark themes, or its body for a host's own page, with raw HTML never passed through and angle-bracket placeholders shown",
+          "commit": "f2197d2"
+        },
+        {
+          "description": "The Cobra commands a host tool mounts (validate, list, show, record, verify, run, doc with --html, schema), with a renameable events flag, and runbookspec, the command line over a runbook kept as JSON",
+          "commit": "4fe55c5"
+        },
+        {
+          "description": "JSON Schemas of a runbook and its event log, generated and embedded",
+          "commit": "5cc179a"
+        }
+      ]
+    }
+  ]
+}

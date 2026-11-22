@@ -29,4 +29,4 @@ Items carry stable IDs; phase status is derived from its items.
 ## Phase 4: Release
 
 - [ ] **RMI-SYSTEMSPECRUNBOOK-010** Documentation site: guides for declaring a runbook, events and states, checks, and rendering
-- [ ] **RMI-SYSTEMSPECRUNBOOK-011** The first release, after the model has run a real launch from start to end
+- [x] **RMI-SYSTEMSPECRUNBOOK-011** The first release, v0.1.0, so modules that depend on it require a tag; what running a real launch from start to end shows goes into v0.1.1 or v0.2.0

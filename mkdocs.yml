@@ -52,6 +52,9 @@ nav:
       - Technical Requirements: specs/TRD.md
       - Plan: specs/PLAN.md
       - Roadmap: specs/ROADMAP.md
+  - Releases:
+      - Changelog: releases/changelog.md
+      - v0.1.0: releases/v0.1.0.md
 
 extra:
   social:
