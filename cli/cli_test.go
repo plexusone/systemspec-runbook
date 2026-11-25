@@ -137,6 +137,36 @@ func TestRun(t *testing.T) {
 	}
 }
 
+func TestRunPhase(t *testing.T) {
+	e := newEnv(t)
+	e.signedIn = true
+	// Every missing variable is reported before the first step starts.
+	out, err := e.exec(t, "y\n", "run", "1", "--yes")
+	if err == nil || !strings.Contains(out, "Phase 1 (Prepare) could not start:") || !strings.Contains(out, "what: what go prints") {
+		t.Fatalf("run 1 without the variable: %v\n%s", err, out)
+	}
+	if out, _ = e.exec(t, "", "list"); !strings.Contains(out, "1.1   ready") {
+		t.Errorf("a step ran before the variables were filled:\n%s", out)
+	}
+	// The person's step is confirmed; the command runs without asking.
+	out, err = e.exec(t, "y\n", "run", "1", "--yes", "--var", "what=GOOS")
+	if err != nil || !strings.Contains(out, "$ go env GOOS") || !strings.Contains(out, "Phase 1 (Prepare) is done") {
+		t.Fatalf("run 1: %v\n%s", err, out)
+	}
+	// A failing command names where it stopped and how to go on.
+	e2 := newEnv(t)
+	e2.signedIn = true
+	if _, err := e2.exec(t, "y\n", "run", "1.1"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = e2.exec(t, "", "run", "1", "--yes", "--var", "what=--no-such-flag")
+	if err == nil || !strings.Contains(out, `stopped at step 1.2 "Go", action 1, command 1:`) ||
+		!strings.Contains(out, " run 1\nRetry the step: ") || !strings.Contains(out, " run 1.2") ||
+		strings.Contains(out, "Usage:") {
+		t.Errorf("a failing phase: %v\n%s", err, out)
+	}
+}
+
 func TestDocAndSchema(t *testing.T) {
 	e := newEnv(t)
 	page := filepath.Join(e.dir, "page.md")
