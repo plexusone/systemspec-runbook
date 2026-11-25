@@ -280,14 +280,21 @@ func (c *commands) run() *cobra.Command {
 	var as string
 	var yes, force bool
 	cmd := &cobra.Command{
-		Use:   "run <step>",
-		Short: "Run a step: show each action, confirm and run its commands, wait on a person's steps, record it, then check it",
+		Use:   "run <step|phase>",
+		Short: "Run a step or a whole phase: show each action, confirm and run its commands, wait on a person's steps, record it, then check it",
 		Long: "run refuses a step whose dependencies are not done (unless --force), fills every variable before\n" +
 			"anything runs, asks before each command (unless --yes), stops at the first failure, and records\n" +
 			"started, failed and done in the event log, then runs the step's checks and records verified.\n" +
-			"Commands run without a shell. Another owner's actions are confirmed as done, never run.",
+			"Commands run without a shell. Another owner's actions are confirmed as done, never run.\n\n" +
+			"Given a phase, such as 8, it runs the phase's steps in order, skipping those already done or\n" +
+			"verified, and reports every missing variable before the first step starts. When a step fails, it\n" +
+			"says where: the phase, step, action and command, the end of the command's output, the runbook's\n" +
+			"fixes whose patterns match, and the commands that resume the phase or retry the step.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// A failed run reports where it stopped and how to go on;
+			// the command's usage would only bury that.
+			cmd.SilenceUsage = true
 			r, l, err := c.load()
 			if err != nil {
 				return err
@@ -306,6 +313,10 @@ func (c *commands) run() *cobra.Command {
 				Stdin:   cmd.InOrStdin(),
 				Out:     cmd.OutOrStdout(),
 				Save:    c.save,
+				Command: runCommand(cmd),
+			}
+			if r.Phase(args[0]) != nil {
+				return runner.RunPhase(cmd.Context(), r, l, args[0])
 			}
 			return runner.Run(cmd.Context(), r, l, args[0])
 		},
@@ -315,6 +326,20 @@ func (c *commands) run() *cobra.Command {
 	cmd.Flags().BoolVar(&yes, "yes", false, "run commands without asking before each; a person's steps are still confirmed")
 	cmd.Flags().BoolVar(&force, "force", false, "run a step whose dependencies are not done; the log says so")
 	return cmd
+}
+
+// runCommand is the run command as the person typed it, such as
+// "bin/infra runbook run": the program as invoked, then the command's path
+// below the root.
+func runCommand(cmd *cobra.Command) string {
+	parts := strings.Fields(cmd.CommandPath())
+	if len(parts) == 0 {
+		return "run"
+	}
+	if len(os.Args) > 0 && os.Args[0] != "" {
+		parts[0] = os.Args[0]
+	}
+	return strings.Join(parts, " ")
 }
 
 func (c *commands) doc() *cobra.Command {
