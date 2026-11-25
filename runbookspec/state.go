@@ -33,13 +33,17 @@ type Status struct {
 // Finished reports whether the state counts as done for dependencies.
 func (s State) Finished() bool { return s == StateDone || s == StateVerified }
 
-// Statuses derives every step's status from the log, in runbook order.
+// Statuses derives every step's status from the log's current run, in
+// runbook order.
 func Statuses(rb *Runbook, l *Log) []Status {
+	return statuses(rb, l.Current())
+}
+
+// statuses derives every step's status from one run's events.
+func statuses(rb *Runbook, events []Event) []Status {
 	byStep := map[string][]Event{}
-	if l != nil {
-		for _, e := range l.Events {
-			byStep[e.Step] = append(byStep[e.Step], e)
-		}
+	for _, e := range events {
+		byStep[e.Step] = append(byStep[e.Step], e)
 	}
 	states := map[string]State{}
 	var out []Status

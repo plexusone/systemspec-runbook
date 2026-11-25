@@ -319,6 +319,10 @@
           "type": "string",
           "description": "Usage explains how to use the runbook, in Markdown."
         },
+        "recurring": {
+          "type": "boolean",
+          "description": "Recurring marks a runbook that is run again, each time from its\nfirst step, such as a deploy. Its log keeps every run; a step's\nstate comes from the current run."
+        },
         "variables": {
           "items": {
             "$ref": "#/$defs/Variable"

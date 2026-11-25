@@ -38,6 +38,10 @@ type Runbook struct {
 	Summary string `json:"summary"`
 	// Usage explains how to use the runbook, in Markdown.
 	Usage string `json:"usage,omitempty"`
+	// Recurring marks a runbook that is run again, each time from its
+	// first step, such as a deploy. Its log keeps every run; a step's
+	// state comes from the current run.
+	Recurring bool `json:"recurring,omitempty"`
 	// Variables are the names {{name}} may reference in text, commands
 	// and checks. Every reference must be declared.
 	Variables []Variable `json:"variables,omitempty"`

@@ -59,6 +59,13 @@
           "type": "string",
           "description": "Runbook is the ID of the runbook the events belong to."
         },
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/RunStart"
+          },
+          "type": "array",
+          "description": "Runs are when each run after the first began, for a recurring\nrunbook; oldest first. A log without runs is one run."
+        },
         "events": {
           "items": {
             "$ref": "#/$defs/Event"
@@ -74,6 +81,34 @@
         "events"
       ],
       "description": "Log is a runbook's event log, as committed."
+    },
+    "RunStart": {
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "At is when the run began, in UTC."
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "agent",
+            "both"
+          ],
+          "description": "By is who began it: an owner."
+        },
+        "note": {
+          "type": "string",
+          "description": "Note adds context, such as the release being deployed."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "at"
+      ],
+      "description": "RunStart is the start of a new run of a recurring runbook."
     }
   },
   "title": "Runbook events",
