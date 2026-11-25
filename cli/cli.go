@@ -46,7 +46,7 @@ type Options struct {
 }
 
 // New returns the parent command with validate, list, show, record,
-// verify, run, restart, state, doc and schema.
+// verify, prepare, run, restart, state, doc and schema.
 func New(o Options) *cobra.Command {
 	if o.Use == "" {
 		o.Use = "runbook"
@@ -64,7 +64,7 @@ func New(o Options) *cobra.Command {
 	}
 	root.PersistentFlags().StringVar(&c.o.EventsPath, o.EventsFlag, o.EventsPath, "the runbook's event log (JSON); missing means no events yet")
 	root.PersistentFlags().StringVar(&c.o.Root, "root", o.Root, "the directory commands run in, and their dir is relative to")
-	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.run(), c.restart(), c.state(), c.doc(), c.schema())
+	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.prepare(), c.run(), c.restart(), c.state(), c.doc(), c.schema())
 	return root
 }
 
@@ -277,7 +277,7 @@ func (c *commands) verify() *cobra.Command {
 
 func (c *commands) run() *cobra.Command {
 	var vars []string
-	var as string
+	var as, envFile string
 	var yes, force bool
 	cmd := &cobra.Command{
 		Use:   "run <step|phase>",
@@ -295,6 +295,9 @@ func (c *commands) run() *cobra.Command {
 			// A failed run reports where it stopped and how to go on;
 			// the command's usage would only bury that.
 			cmd.SilenceUsage = true
+			if err := loadEnvFile(cmd, envFile); err != nil {
+				return err
+			}
 			r, l, err := c.load()
 			if err != nil {
 				return err
@@ -325,7 +328,156 @@ func (c *commands) run() *cobra.Command {
 	cmd.Flags().StringVar(&as, "as", string(rb.OwnerOperator), "who runs: operator, agent or both")
 	cmd.Flags().BoolVar(&yes, "yes", false, "run commands without asking before each; a person's steps are still confirmed")
 	cmd.Flags().BoolVar(&force, "force", false, "run a step whose dependencies are not done; the log says so")
+	cmd.Flags().StringVar(&envFile, "env-file", "", "a file of NAME=value lines to set first, keeping what the environment already sets; values are never shown")
 	return cmd
+}
+
+// loadEnvFile sets the variables of an env file, naming them without their
+// values.
+func loadEnvFile(cmd *cobra.Command, path string) error {
+	if path == "" {
+		return nil
+	}
+	set, err := rb.LoadEnvFile(path)
+	if err != nil {
+		return err
+	}
+	if len(set) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "Set from %s: %s\n", path, strings.Join(set, ", ")) //nolint:errcheck // shown best effort
+	}
+	return nil
+}
+
+func (c *commands) prepare() *cobra.Command {
+	var vars []string
+	var as, envFile, writeEnv string
+	cmd := &cobra.Command{
+		Use:   "prepare <step|phase|all>",
+		Short: "List every value and precondition a run needs, which are in place and which are missing, and how to set each up",
+		Long: "prepare lists what a run of a step, a phase or every remaining step needs: each variable, where its\n" +
+			"value comes from, and each input, such as a token in the environment or a key in the SSH agent, with\n" +
+			"how to set it up and the steps that use it. It only reads: it checks that environment variables are\n" +
+			"set and runs inputs' checks, never a variable's command, and never shows a value. It fails while\n" +
+			"anything is missing. --write-env writes an env file to fill in, with no values, for run --env-file.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			if err := loadEnvFile(cmd, envFile); err != nil {
+				return err
+			}
+			r, l, err := c.load()
+			if err != nil {
+				return err
+			}
+			values, err := c.values(r, vars)
+			if err != nil {
+				return err
+			}
+			steps, err := r.Remaining(l, args[0])
+			if err != nil {
+				return err
+			}
+			runner := &rb.Runner{Values: values, Checker: &rb.Checker{Named: c.o.Named, Values: values}, Root: c.o.Root, As: rb.Owner(as)}
+			reqs := runner.Requirements(cmd.Context(), r, steps)
+			title := "steps " + args[0]
+			if p := r.Phase(args[0]); p != nil {
+				title = fmt.Sprintf("phase %s (%s)", p.ID, p.Title)
+			} else if args[0] == "all" {
+				title = "the remaining steps"
+			}
+			if err := WritePrepare(cmd.OutOrStdout(), title, steps, reqs); err != nil {
+				return err
+			}
+			if writeEnv != "" {
+				if _, err := os.Stat(writeEnv); err == nil {
+					return fmt.Errorf("prepare: %s exists; it is never overwritten", writeEnv)
+				}
+				if err := os.WriteFile(writeEnv, rb.EnvTemplate(title, reqs), 0o600); err != nil {
+					return fmt.Errorf("prepare: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "\nWrote %s, with no values: fill it in, keep it out of version control, and run with --env-file %s.\n", writeEnv, writeEnv) //nolint:errcheck // shown best effort
+			}
+			if n := len(rb.Missing(reqs)); n > 0 {
+				return fmt.Errorf("prepare: %d missing", n)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringArrayVar(&vars, "var", nil, "a variable's value, name=value; repeat for each")
+	cmd.Flags().StringVar(&as, "as", string(rb.OwnerOperator), "who runs: operator, agent or both")
+	cmd.Flags().StringVar(&envFile, "env-file", "", "a file of NAME=value lines to set first, keeping what the environment already sets")
+	cmd.Flags().StringVar(&writeEnv, "write-env", "", "write an env file to fill in, with a line for each environment variable and no values")
+	return cmd
+}
+
+// WritePrepare writes what a run needs: one line for each variable and
+// input with its state, then how to set up each one missing.
+func WritePrepare(w io.Writer, title string, steps []*rb.Step, reqs []rb.Requirement) error {
+	ids := make([]string, len(steps))
+	for i, s := range steps {
+		ids[i] = s.ID
+	}
+	if len(steps) == 0 {
+		_, err := fmt.Fprintf(w, "Nothing to run for %s: every step is done or verified.\n", title)
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s: %d step(s) to run, %s.\n\n", capitalizeFirst(title), len(steps), strings.Join(ids, ", ")); err != nil {
+		return err
+	}
+	if len(reqs) == 0 {
+		_, err := fmt.Fprintln(w, "It needs no variables or inputs.")
+		return err
+	}
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	for _, r := range reqs {
+		name := r.Name
+		if r.Secret {
+			name += " (secret)"
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", r.State, r.Kind, name, r.Detail, "steps "+strings.Join(r.Steps, ", ")) //nolint:errcheck // flushed below
+	}
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	missing := rb.Missing(reqs)
+	if len(missing) == 0 {
+		_, err := fmt.Fprintln(w, "\nReady: every value and precondition is in place.")
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "\nMissing %d:\n", len(missing)); err != nil {
+		return err
+	}
+	for _, r := range missing {
+		line := fmt.Sprintf("\n%s: %s", r.Name, r.Description)
+		if r.Example != "" {
+			line += ", such as " + r.Example
+		}
+		switch {
+		case r.Env != "" && r.Kind == "variable":
+			line += fmt.Sprintf("\n  Set $%s, or give --var %s=…", r.Env, r.Name)
+		case r.Env != "":
+			line += fmt.Sprintf("\n  Set $%s", r.Env)
+			if r.Secret {
+				line += " in the shell that runs; it is a secret"
+			}
+		case r.Kind == "variable":
+			line += fmt.Sprintf("\n  Give --var %s=…", r.Name)
+		}
+		if r.HowTo != "" {
+			line += "\n  " + strings.ReplaceAll(strings.TrimSpace(rb.Placeholders(r.HowTo)), "\n", "\n  ")
+		}
+		if _, err := fmt.Fprintln(w, line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // runCommand is the run command as the person typed it, such as
