@@ -30,6 +30,57 @@ templ pageBody(v pageView) {
 		<h2 id="how-to-use-it">How to Use It</h2>
 		@v.Usage
 	}
+	if v.BeforeIntro != nil {
+		<h2 id="before-you-start">Before You Start</h2>
+		@v.BeforeIntro
+		if len(v.Variables) > 0 {
+			<table>
+				<thead>
+					<tr><th>Variable</th><th>Set with</th><th>What</th><th>Used by</th></tr>
+				</thead>
+				<tbody>
+					for _, vr := range v.Variables {
+						<tr>
+							<td><code>{ vr.Name }</code></td>
+							<td>@vr.Source</td>
+							<td>@vr.What</td>
+							<td>@links(vr.UsedBy)</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		for _, in := range v.Inputs {
+			<section class="input" id={ in.Anchor }>
+				<h3>{ in.Name }</h3>
+				@in.Description
+				if in.Env != "" {
+					<p>
+						<span class="label">Set:</span> <code>export { in.Env }=…</code>
+						if in.Secret {
+							, in the shell that runs; it is a secret, never shown or written down
+						}
+						.
+					</p>
+				}
+				if in.Check != "" {
+					<p>
+						<span class="label">Checked with:</span> <code>{ in.Check }</code>
+						if in.Contains != "" {
+							, which must print <code>{ in.Contains }</code>
+						}
+						.
+					</p>
+				}
+				if in.HowTo != nil {
+					@in.HowTo
+				}
+				if len(in.UsedBy) > 0 {
+					<p><span class="label">Used by:</span> @links(in.UsedBy){ "." }</p>
+				}
+			</section>
+		}
+	}
 	<h2 id="summary">Summary</h2>
 	<table>
 		<thead>
@@ -99,6 +150,9 @@ templ step(s stepView) {
 		if s.Summary != nil {
 			@s.Summary
 		}
+		if len(s.Needs) > 0 {
+			<p><span class="label">Needs:</span> @links(s.Needs){ "." }</p>
+		}
 		if len(s.Actions) > 0 {
 			<ol class="actions">
 				for _, a := range s.Actions {
@@ -161,4 +215,14 @@ templ fixes(fs []fixView) {
 			<li><code>{ f.Match }</code>: @f.Fix</li>
 		}
 	</ul>
+}
+
+// links is a comma-separated list of links within the page.
+templ links(ls []linkView) {
+	for i, l := range ls {
+		if i > 0 {
+			,
+		}
+		<a href={ templ.SafeURL(l.Href) }>{ l.Text }</a>
+	}
 }

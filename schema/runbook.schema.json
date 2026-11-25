@@ -222,6 +222,41 @@
       ],
       "description": "HTTPCheck passes when a request returns the status, without following redirects."
     },
+    "Input": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name names the input, as steps' needs and the page refer to it,\nsuch as \"CLOUDFLARE_API_TOKEN\" or \"ssh-agent-key\"."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description says what the input is."
+        },
+        "env": {
+          "type": "string",
+          "description": "Env, when set, is the environment variable that must hold a value."
+        },
+        "secret": {
+          "type": "boolean",
+          "description": "Secret marks a value that is never shown, written or logged: a run\nchecks only that it is set."
+        },
+        "howTo": {
+          "type": "string",
+          "description": "HowTo says how to get or set it up, in Markdown, such as the\nconsole page and the permissions a token needs."
+        },
+        "check": {
+          "$ref": "#/$defs/CommandCheck",
+          "description": "Check, when set, is a command that must succeed, and print Contains\nwhen that is set, for the input to be in place. It only reads, and\nmay reference variables."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "description": "Input is something a run needs that is not a {{variable}}: a value in the environment that commands read themselves, such as an API token, or a precondition a command checks, such as a key loaded in the SSH agent."
+    },
     "Later": {
       "properties": {
         "what": {
@@ -349,6 +384,13 @@
           "type": "array",
           "description": "Variables are the names {{name}} may reference in text, commands\nand checks. Every reference must be declared."
         },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/Input"
+          },
+          "type": "array",
+          "description": "Inputs are what steps need that are not variables: values in the\nenvironment, such as tokens, and preconditions a command checks,\nsuch as a key in the SSH agent. A run checks those its steps need\nbefore it starts."
+        },
         "phases": {
           "items": {
             "$ref": "#/$defs/Phase"
@@ -446,6 +488,13 @@
           },
           "type": "array",
           "description": "Checks prove the step is done. They only read."
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Needs are the names of the inputs the step needs, checked before it\nruns."
         },
         "credentials": {
           "items": {

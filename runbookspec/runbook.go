@@ -45,6 +45,11 @@ type Runbook struct {
 	// Variables are the names {{name}} may reference in text, commands
 	// and checks. Every reference must be declared.
 	Variables []Variable `json:"variables,omitempty"`
+	// Inputs are what steps need that are not variables: values in the
+	// environment, such as tokens, and preconditions a command checks,
+	// such as a key in the SSH agent. A run checks those its steps need
+	// before it starts.
+	Inputs []Input `json:"inputs,omitempty"`
 	// Phases are done in order.
 	Phases []Phase `json:"phases"`
 	// Later is work that follows the runbook, listed at the end.
@@ -126,6 +131,9 @@ type Step struct {
 	Done string `json:"done"`
 	// Checks prove the step is done. They only read.
 	Checks []Check `json:"checks,omitempty"`
+	// Needs are the names of the inputs the step needs, checked before it
+	// runs.
+	Needs []string `json:"needs,omitempty"`
 	// Credentials are the IDs of the credentials the step creates.
 	Credentials []string `json:"credentials,omitempty"`
 	// Gate marks a decision or condition rather than work.

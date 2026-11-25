@@ -74,6 +74,7 @@ func (rb *Runbook) Validate(opts ValidateOptions) error {
 		}
 	}
 	errs = append(errs, rb.validateVariables()...)
+	errs = append(errs, rb.validateInputs()...)
 	return errors.Join(errs...)
 }
 
@@ -118,6 +119,13 @@ func (rb *Runbook) validateVariables() []error {
 		page = append(page, l.Needs)
 	}
 	check("runbook", page)
+	for _, in := range rb.Inputs {
+		texts := []string{in.HowTo}
+		if in.Check != nil {
+			texts = append(append(texts, in.Check.Args...), in.Check.Contains)
+		}
+		check("input "+in.Name, texts)
+	}
 	for _, s := range rb.Steps() {
 		check("step "+s.ID, s.strings())
 	}

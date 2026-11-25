@@ -115,6 +115,8 @@ func (r *renderer) page() {
 		r.p("## How to Use It\n\n%s\n\n", r.text(strings.TrimSpace(rb.Usage)))
 	}
 
+	r.beforeYouStart()
+
 	r.p("## Summary\n\n| Phase | Steps | What it gives you |\n|---|---|---|\n")
 	for _, ph := range rb.Phases {
 		r.p("| [%s](#%s) | %d | %s |\n", phaseHeading(ph), Slug(phaseHeading(ph)), len(ph.Steps), r.text(ph.Gives))
@@ -162,6 +164,13 @@ func (r *renderer) step(s *Step) {
 	if s.Summary != "" {
 		r.p("%s\n\n", r.text(strings.TrimSpace(s.Summary)))
 	}
+	if len(s.Needs) > 0 {
+		var needs []string
+		for _, n := range s.Needs {
+			needs = append(needs, fmt.Sprintf("[%s](#%s)", n, Slug(n)))
+		}
+		r.p("**Needs:** %s.\n\n", strings.Join(needs, ", "))
+	}
 	r.actions(s)
 	for _, n := range s.Notes {
 		r.p("%s\n\n", r.text(strings.TrimSpace(n)))
@@ -189,6 +198,108 @@ func (r *renderer) step(s *Step) {
 		r.p("**Troubleshooting:**\n\n")
 		r.fixes(s.Troubleshoot)
 	}
+}
+
+// beforeYouStart renders what to set up before a run: each variable with
+// where its value comes from and the steps that use it, then each input
+// with how to set it up.
+func (r *renderer) beforeYouStart() {
+	rb := r.rb
+	if len(rb.Variables) == 0 && len(rb.Inputs) == 0 {
+		return
+	}
+	r.p("## Before You Start\n\n%s\n\n", beforeYouStartIntro)
+	if len(rb.Variables) > 0 {
+		r.p("| Variable | Set with | What | Used by |\n|---|---|---|---|\n")
+		for _, v := range rb.Variables {
+			r.p("| `%s` | %s | %s | %s |\n", v.Name, variableSource(v), cell(variableWhat(v)), r.stepLinks(rb.variableSteps(v.Name)))
+		}
+		r.p("\n")
+	}
+	for _, in := range rb.Inputs {
+		r.p("### %s\n\n%s\n\n", in.Name, r.text(strings.TrimSpace(in.Description)))
+		if in.Env != "" {
+			r.p("**Set:** `export %s=…`", in.Env)
+			if in.Secret {
+				r.p(", in the shell that runs; it is a secret, never shown or written down")
+			}
+			r.p(".\n\n")
+		}
+		if in.Check != nil {
+			r.p("**Checked with:** `%s`", quoteArgs(in.Check.Args))
+			if in.Check.Contains != "" {
+				r.p(", which must print `%s`", in.Check.Contains)
+			}
+			r.p(".\n\n")
+		}
+		if in.HowTo != "" {
+			r.p("%s\n\n", r.text(strings.TrimSpace(in.HowTo)))
+		}
+		if steps := rb.inputSteps(in.Name); len(steps) > 0 {
+			r.p("**Used by:** %s.\n\n", r.stepLinks(steps))
+		}
+	}
+}
+
+// beforeYouStartIntro opens the Before You Start section.
+const beforeYouStartIntro = "Set these up once, before running. A run checks every value and " +
+	"precondition its steps need before the first one starts, and `prepare` lists which are missing."
+
+func variableSource(v Variable) string {
+	switch {
+	case v.Env != "":
+		return "`$" + v.Env + "` or `--var " + v.Name + "=…`"
+	case v.Later:
+		return "an earlier command of the run"
+	case v.From != nil:
+		return "`" + quoteArgs(v.From.Args) + "`"
+	}
+	return "`--var " + v.Name + "=…`"
+}
+
+func variableWhat(v Variable) string {
+	if v.Example != "" {
+		return v.Description + ", such as `" + v.Example + "`"
+	}
+	return v.Description
+}
+
+// cell keeps text on one table row.
+func cell(s string) string { return strings.ReplaceAll(strings.ReplaceAll(s, "\n", " "), "|", "\\|") }
+
+// stepLinks links each step to its section.
+func (r *renderer) stepLinks(ids []string) string {
+	var out []string
+	for _, id := range ids {
+		out = append(out, r.text("[[step:"+id+"]]"))
+	}
+	return strings.Join(out, ", ")
+}
+
+// variableSteps are the steps whose text, commands or checks reference
+// the variable.
+func (rb *Runbook) variableSteps(name string) []string {
+	var out []string
+	for _, s := range rb.Steps() {
+		for _, t := range s.strings() {
+			if slices.Contains(References(t), name) {
+				out = append(out, s.ID)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// inputSteps are the steps that need the input.
+func (rb *Runbook) inputSteps(name string) []string {
+	var out []string
+	for _, s := range rb.Steps() {
+		if slices.Contains(s.Needs, name) {
+			out = append(out, s.ID)
+		}
+	}
+	return out
 }
 
 // fixes renders fixes as a list: the pattern a failure's output matches,

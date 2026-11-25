@@ -140,6 +140,12 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 
 	// Fill every command's variables before anything runs or is recorded.
 	prepared, err := r.prepare(ctx, s)
+	if err == nil && r.phase == "" {
+		// A phase run checked every step's inputs before it started.
+		if mi := r.missingInputs(ctx, rb, []*Step{s}); mi != nil {
+			err = mi
+		}
+	}
 	if err != nil {
 		f := &Failure{Phase: rb.PhaseOf(id), Step: s, Err: err, Fixes: rb.Fixes(s, err.Error())}
 		r.report(ctx, f)
@@ -279,9 +285,15 @@ func (r *Runner) RunPhase(ctx context.Context, rb *Runbook, l *Log, id string) e
 	}
 	r.phase = p.ID
 	defer func() { r.phase = "" }()
+	var errs []error
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		err := r.Values.unfilled(compact(missing))
+		errs = append(errs, r.Values.unfilled(compact(missing)))
+	}
+	if mi := r.missingInputs(ctx, rb, todo); mi != nil {
+		errs = append(errs, mi)
+	}
+	if err := errors.Join(errs...); err != nil {
 		f := &Failure{Phase: p, Err: err, Fixes: rb.Fixes(nil, err.Error())}
 		r.report(ctx, f)
 		return f

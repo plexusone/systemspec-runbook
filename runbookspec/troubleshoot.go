@@ -111,6 +111,15 @@ func (r *Runner) report(ctx context.Context, f *Failure) {
 			w("    %s\n", r.Values.describe(n))
 		}
 	}
+	var mi *MissingInputsError
+	if errors.As(f.Err, &mi) {
+		for _, in := range mi.Inputs {
+			w("    %s: %s (%s)\n", in.Name, in.Description, in.Detail)
+			if in.HowTo != "" {
+				w("%s\n", indentLines(indentLines(r.show(ctx, strings.TrimSpace(in.HowTo)))))
+			}
+		}
+	}
 	if f.Output != "" {
 		w("%s\n", indentLines(f.Output))
 	}

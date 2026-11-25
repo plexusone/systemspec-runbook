@@ -58,9 +58,25 @@ func (rb *Runbook) HTML(opts HTMLOptions) ([]byte, error) {
 type pageView struct {
 	Title, Generator string
 	Summary, Usage   templ.Component
+	BeforeIntro      templ.Component
+	Variables        []variableView
+	Inputs           []inputView
 	Phases           []phaseView
 	Troubleshoot     []fixView
 	Later            []laterView
+}
+
+type variableView struct {
+	Name         string
+	Source, What templ.Component
+	UsedBy       []linkView
+}
+
+type inputView struct {
+	Name, Anchor, Env, Check, Contains string
+	Secret                             bool
+	Description, HowTo                 templ.Component
+	UsedBy                             []linkView
 }
 
 type fixView struct {
@@ -85,6 +101,7 @@ type stepView struct {
 	VerifyCommand          string
 	Gate                   bool
 	Troubleshoot           []fixView
+	Needs                  []linkView
 }
 
 type actionView struct {
@@ -109,6 +126,33 @@ func (rb *Runbook) view(opts RenderOptions) (pageView, error) {
 	v := pageView{Title: rb.Title, Generator: opts.Generator, Summary: md(rb.Summary)}
 	if rb.Usage != "" {
 		v.Usage = md(rb.Usage)
+	}
+	stepLinks := func(ids []string) []linkView {
+		var out []linkView
+		for _, id := range ids {
+			if st := rb.Step(id); st != nil {
+				out = append(out, linkView{Text: id, Href: "#" + StepAnchor(st)})
+			}
+		}
+		return out
+	}
+	if len(rb.Variables) > 0 || len(rb.Inputs) > 0 {
+		v.BeforeIntro = md(beforeYouStartIntro)
+	}
+	for _, vr := range rb.Variables {
+		v.Variables = append(v.Variables, variableView{Name: vr.Name, Source: md(variableSource(vr)), What: md(variableWhat(vr)),
+			UsedBy: stepLinks(rb.variableSteps(vr.Name))})
+	}
+	for _, in := range rb.Inputs {
+		iv := inputView{Name: in.Name, Anchor: Slug(in.Name), Env: in.Env, Secret: in.Secret, Description: md(in.Description),
+			UsedBy: stepLinks(rb.inputSteps(in.Name))}
+		if in.Check != nil {
+			iv.Check, iv.Contains = quoteArgs(in.Check.Args), in.Check.Contains
+		}
+		if in.HowTo != "" {
+			iv.HowTo = md(in.HowTo)
+		}
+		v.Inputs = append(v.Inputs, iv)
 	}
 	for _, ph := range rb.Phases {
 		pv := phaseView{Heading: phaseHeading(ph), Anchor: Slug(phaseHeading(ph)), Gives: md(ph.Gives)}
@@ -157,6 +201,9 @@ func (rb *Runbook) view(opts RenderOptions) (pageView, error) {
 			}
 			for _, f := range s.Troubleshoot {
 				sv.Troubleshoot = append(sv.Troubleshoot, fixView{Match: f.Match, Fix: md(f.Fix)})
+			}
+			for _, n := range s.Needs {
+				sv.Needs = append(sv.Needs, linkView{Text: n, Href: "#" + Slug(n)})
 			}
 			pv.Steps = append(pv.Steps, sv)
 		}
