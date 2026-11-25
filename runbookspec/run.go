@@ -108,6 +108,13 @@ type Runner struct {
 	Save func(*Log) error
 	// Now is the clock; nil is time.Now.
 	Now func() time.Time
+	// Command is the run command a failure's report tells a person to run
+	// again, such as "bin/infra runbook run"; "run" when empty.
+	Command string
+
+	// phase is the phase a phase run is running, for a report's resume
+	// line.
+	phase string
 }
 
 // Run runs a step of rb, appending its events to l.
@@ -134,7 +141,9 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 	// Fill every command's variables before anything runs or is recorded.
 	prepared, err := r.prepare(ctx, s)
 	if err != nil {
-		return err
+		f := &Failure{Phase: rb.PhaseOf(id), Step: s, Err: err, Fixes: rb.Fixes(s, err.Error())}
+		r.report(ctx, f)
+		return f
 	}
 
 	r.say("%s %s (owner: %s)", s.ID, s.Title, s.Owner)
@@ -152,7 +161,7 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 		}
 		r.say("\n[%d/%d] %s: %s", i+1, len(s.Actions), owner, r.show(ctx, strings.TrimSpace(a.Text)))
 		if a.Command != "" {
-			r.say("\n%s", indentLines(r.show(ctx, strings.TrimSpace(a.Command)), "    "))
+			r.say("\n%s", indentLines(r.show(ctx, strings.TrimSpace(a.Command))))
 		}
 		if len(a.Exec) > 0 && r.runs(owner) {
 			for j, p := range prepared[i] {
@@ -165,7 +174,10 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 						if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: Redact(msg)}); rerr != nil {
 							return errors.Join(err, rerr)
 						}
-						return fmt.Errorf("runbook: %s", msg)
+						f := &Failure{Phase: rb.PhaseOf(id), Step: s, Action: i + 1, Command: j + 1,
+							Line: ShellLines([]Exec{a.Exec[j]}), Err: err, Fixes: rb.Fixes(s, err.Error()), msg: msg}
+						r.report(ctx, f)
+						return f
 					}
 				}
 				r.say("\n%s", prompted(p.Line))
@@ -178,18 +190,25 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 						return ErrStopped
 					}
 				}
-				if err := r.Exec(ctx, p, r.Stdin, r.Out, r.Out); err != nil {
+				// The output streams on, and its end is kept for a report.
+				t := &tail{max: 64 << 10}
+				out := io.MultiWriter(r.Out, t)
+				if err := r.Exec(ctx, p, r.Stdin, out, out); err != nil {
 					msg := fmt.Sprintf("action %d, command %d (%s) failed: %v", i+1, j+1, p.Args[0], err)
 					if rerr := r.record(rb, l, Event{Step: id, Type: EventFailed, Note: Redact(msg)}); rerr != nil {
 						return errors.Join(err, rerr)
 					}
-					return fmt.Errorf("runbook: %s", msg)
+					output := t.lines(tailLines)
+					f := &Failure{Phase: rb.PhaseOf(id), Step: s, Action: i + 1, Command: j + 1, Line: p.Line, Err: err,
+						Output: output, Fixes: rb.Fixes(s, output+"\n"+err.Error()), msg: msg}
+					r.report(ctx, f)
+					return f
 				}
 			}
 			continue
 		}
 		if len(a.Exec) > 0 {
-			r.say("\n%s", indentLines(ShellLines(a.Exec), "    "))
+			r.say("\n%s", indentLines(ShellLines(a.Exec)))
 		}
 		question := "  Done?"
 		if !r.runs(owner) {
@@ -219,6 +238,76 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 	if e, ok := VerifyEvent(statusOf(rb, l, id), results, r.Now(), r.As); ok {
 		return r.record(rb, l, e)
 	}
+	return nil
+}
+
+// RunPhase runs a phase's steps in order, as Run runs each one. Steps
+// already done or verified are skipped; the rest run until one fails, is
+// stopped, or waits for a step outside the phase that is not done. Every
+// variable the remaining steps need is filled before the first one starts,
+// so a missing value is reported at once, with each one's source.
+func (r *Runner) RunPhase(ctx context.Context, rb *Runbook, l *Log, id string) error {
+	r.defaults()
+	p := rb.Phase(id)
+	if p == nil {
+		return fmt.Errorf("runbook: no phase %s in %s", id, rb.ID)
+	}
+	var todo []*Step
+	finished := 0
+	for i := range p.Steps {
+		if statusOf(rb, l, p.Steps[i].ID).State.Finished() {
+			finished++
+			continue
+		}
+		todo = append(todo, &p.Steps[i])
+	}
+	if len(todo) == 0 {
+		r.say("Phase %s (%s) is done: every step is done or verified.", p.ID, p.Title)
+		return nil
+	}
+
+	var missing []string
+	for _, s := range todo {
+		_, err := r.prepare(ctx, s)
+		var u *UnfilledError
+		switch {
+		case errors.As(err, &u):
+			missing = append(missing, u.Names...)
+		case err != nil:
+			return err
+		}
+	}
+	r.phase = p.ID
+	defer func() { r.phase = "" }()
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		err := r.Values.unfilled(compact(missing))
+		f := &Failure{Phase: p, Err: err, Fixes: rb.Fixes(nil, err.Error())}
+		r.report(ctx, f)
+		return f
+	}
+
+	ids := make([]string, len(todo))
+	for i, s := range todo {
+		ids[i] = s.ID
+	}
+	r.say("Phase %s (%s): %d step(s) to run, %s; %d already done.", p.ID, p.Title, len(todo), strings.Join(ids, ", "), finished)
+	for _, s := range todo {
+		st := statusOf(rb, l, s.ID)
+		if st.State == StateBlocked && !r.Force {
+			r.say("\nPhase %s (%s) stopped at step %s %q: it waits for %s, which is not done.\nFinish it first, or run with --force.\nResume the phase: %s %s",
+				p.ID, p.Title, s.ID, s.Title, strings.Join(st.Blockers, ", "), r.command(), p.ID)
+			return fmt.Errorf("runbook: step %s waits for %s; finish them first, or run with --force", s.ID, strings.Join(st.Blockers, ", "))
+		}
+		r.say("\n=== %s %s ===", s.ID, s.Title)
+		if err := r.Run(ctx, rb, l, s.ID); err != nil {
+			if errors.Is(err, ErrStopped) {
+				r.say("\nPhase %s (%s) stopped at step %s %q before it was done.\nResume the phase: %s %s", p.ID, p.Title, s.ID, s.Title, r.command(), p.ID)
+			}
+			return err
+		}
+	}
+	r.say("\nPhase %s (%s) is done: %s.", p.ID, p.Title, p.Gives)
 	return nil
 }
 
@@ -381,7 +470,10 @@ func prompted(lines string) string {
 	return "  $ " + strings.ReplaceAll(lines, "\n", "\n  $ ")
 }
 
-func indentLines(s, pad string) string {
+// indentLines indents each line of s by four spaces, as a run shows a
+// command or its output.
+func indentLines(s string) string {
+	const pad = "    "
 	return pad + strings.ReplaceAll(s, "\n", "\n"+pad)
 }
 
