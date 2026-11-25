@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -44,8 +45,8 @@ type Options struct {
 	Root string
 }
 
-// New returns the parent command with list, show, record, verify, run, doc
-// and schema.
+// New returns the parent command with validate, list, show, record,
+// verify, run, restart, state, doc and schema.
 func New(o Options) *cobra.Command {
 	if o.Use == "" {
 		o.Use = "runbook"
@@ -63,7 +64,7 @@ func New(o Options) *cobra.Command {
 	}
 	root.PersistentFlags().StringVar(&c.o.EventsPath, o.EventsFlag, o.EventsPath, "the runbook's event log (JSON); missing means no events yet")
 	root.PersistentFlags().StringVar(&c.o.Root, "root", o.Root, "the directory commands run in, and their dir is relative to")
-	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.run(), c.doc(), c.schema())
+	root.AddCommand(c.validate(), c.list(), c.show(), c.record(), c.verify(), c.run(), c.restart(), c.state(), c.doc(), c.schema())
 	return root
 }
 
@@ -472,4 +473,86 @@ func WriteStep(w io.Writer, r *rb.Runbook, statuses []rb.Status, id string) erro
 	}
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+func (c *commands) restart() *cobra.Command {
+	var note, by string
+	cmd := &cobra.Command{
+		Use:   "restart",
+		Short: "Begin a new run of a recurring runbook: every step returns to ready or blocked",
+		Long: "restart begins a new run of a runbook marked recurring, such as a deploy. The earlier runs'\n" +
+			"events stay in the log as history; the steps' states come from the new run.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			r, l, err := c.load()
+			if err != nil {
+				return err
+			}
+			at := l.NextRunStart(time.Now().UTC().Truncate(time.Second))
+			if err := l.Restart(r, rb.RunStart{At: at, By: rb.Owner(by), Note: note}); err != nil {
+				return err
+			}
+			if err := c.save(l); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s: run %d begun\n", r.ID, len(l.Runs)+1)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&note, "note", "", "context, such as the release being deployed; never a secret")
+	cmd.Flags().StringVar(&by, "by", "", "who: operator or agent")
+	return cmd
+}
+
+func (c *commands) state() *cobra.Command {
+	var format string
+	cmd := &cobra.Command{
+		Use:   "state",
+		Short: "Show the runbook's state: its current run, every run before it, and when it last finished",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			r, l, err := c.load()
+			if err != nil {
+				return err
+			}
+			st := rb.StateOf(r, l)
+			switch format {
+			case "json":
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				return enc.Encode(st)
+			case "text":
+				return WriteState(cmd.OutOrStdout(), st)
+			default:
+				return fmt.Errorf("--format %q is not text or json", format)
+			}
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", "text", "text or json")
+	return cmd
+}
+
+// WriteState writes a runbook's state as text: the current run, then each
+// earlier one.
+func WriteState(w io.Writer, st rb.RunbookState) error {
+	when := func(t *time.Time) string {
+		if t == nil {
+			return "-"
+		}
+		return t.Format(time.RFC3339)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "%s\t%d steps\t", st.Runbook, st.Steps) //nolint:errcheck // tabwriter's error is Flush's
+	if st.Recurring {
+		fmt.Fprintf(tw, "recurring, %d run(s)\tlast finished %s\n", len(st.Runs), when(st.LastFinished)) //nolint:errcheck // as above
+	} else {
+		fmt.Fprintf(tw, "run once\tfinished %s\n", when(st.LastFinished)) //nolint:errcheck // as above
+	}
+	fmt.Fprintln(tw, "RUN\tOUTCOME\tSTARTED\tLAST EVENT\tFINISHED\tSTEPS DONE\tNOTE") //nolint:errcheck // as above
+	for i := len(st.Runs) - 1; i >= 0; i-- {
+		r := st.Runs[i]
+		done := r.States[rb.StateDone] + r.States[rb.StateVerified]
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%d/%d\t%s\n", r.N, r.Outcome, when(r.Started), when(r.LastEvent), when(r.Finished), done, st.Steps, r.Note) //nolint:errcheck // as above
+	}
+	return tw.Flush()
 }
