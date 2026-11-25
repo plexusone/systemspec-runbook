@@ -55,6 +55,11 @@ was done in an event log, and derives where each step stands.
   heading does not exist, with headings named as MkDocs names them.
 - **An event log** of what happened to each step, by whom and when. It
   refuses notes that look like secrets.
+- **Recurring runbooks and their state.** A runbook marked `recurring`,
+  such as a deploy, is run again from its first step: `restart` begins a
+  new run and keeps the earlier ones as history. `state` reports each
+  run's start, last event, finish and outcome, and when the runbook last
+  finished.
 - **JSON Schemas** of a runbook and its log, generated from the Go types.
 
 ## Command Line
@@ -64,6 +69,8 @@ go install github.com/plexusone/systemspec-runbook/cmd/runbookspec@latest
 runbookspec list   --runbook runbook.json --events events.json
 runbookspec run 1.2 --runbook runbook.json --var profile=ops
 runbookspec verify --all --record --runbook runbook.json --root .
+runbookspec restart --note v1.2.0 --runbook deploy.json --events deploy.events.json
+runbookspec state --format json --runbook deploy.json --events deploy.events.json
 ```
 
 `--root` is the directory commands run in, and their `dir` is relative

@@ -65,6 +65,33 @@ data, err := log.Marshal() // commit it with the work
 A step with no events is `blocked` until its dependencies are done or
 verified, then `ready`. A note that looks like a secret is refused.
 
+## Recurring Runbooks and Their State
+
+A launch is run once; a deploy is run every time. Mark a runbook that is
+run again `recurring`, and begin each run with `restart`:
+
+```go
+rb.Recurring = true
+err = log.Restart(rb, runbookspec.RunStart{At: log.NextRunStart(time.Now()), By: runbookspec.OwnerOperator, Note: "v1.2.0"})
+```
+
+The log keeps when each run began, and every event. A step's state comes
+from the current run's events, so after a restart every step is `ready`
+or `blocked` again, and the earlier runs stay as history. A runbook that
+is not recurring refuses a restart; reopen a step instead.
+
+`StateOf` returns the runbook's state at a glance:
+
+| Field | What it says |
+|---|---|
+| `current` | The run whose events give the steps' states |
+| `runs` | Every run, oldest first: when it started and by whom, its last event, when it finished, its outcome and its steps by state |
+| `lastFinished` | When the latest finished run finished |
+
+A run's outcome is `not-started`, `in-progress`, `failed` when its last
+event is a failure, or `finished` once every step is done or verified.
+`state` prints it, as text or with `--format json`.
+
 ## Variables
 
 Declare each value known only at run time, and reference it as

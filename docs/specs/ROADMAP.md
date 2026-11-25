@@ -27,6 +27,11 @@ Items carry stable IDs; phase status is derived from its items.
 - [x] **RMI-SYSTEMSPECRUNBOOK-017** A host's events flag: the commands' event log flag renamed when the host has an events flag of its own
 - [x] **RMI-SYSTEMSPECRUNBOOK-015** Variables from commands: a variable names the command whose output is its value, such as a stack's output, so a runbook kept as JSON runs with `runbookspec` and no host code; `--root` sets where commands run
 
+## Phase 5: Runbook State
+
+- [x] **RMI-SYSTEMSPECRUNBOOK-019** Recurring runbooks: runs in the event log, each step's state from the current run, and the runbook's state with each run's start, last event, finish and outcome
+- [x] **RMI-SYSTEMSPECRUNBOOK-020** `restart` and `state` commands
+
 ## Phase 4: Release
 
 - [ ] **RMI-SYSTEMSPECRUNBOOK-010** Documentation site: guides for declaring a runbook, events and states, checks, and rendering
