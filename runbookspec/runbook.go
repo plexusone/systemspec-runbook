@@ -49,6 +49,20 @@ type Runbook struct {
 	Phases []Phase `json:"phases"`
 	// Later is work that follows the runbook, listed at the end.
 	Later []Later `json:"later,omitempty"`
+	// Troubleshoot are fixes for failures any step may meet, such as a
+	// connection refused or a key not loaded. A run that fails shows each
+	// whose pattern matches; a step's own come first.
+	Troubleshoot []Fix `json:"troubleshoot,omitempty"`
+}
+
+// Fix is what to do about a failure: when the failed command's output or
+// error matches the pattern, the run shows the fix.
+type Fix struct {
+	// Match is a regular expression (Go syntax) matched against the failed
+	// command's output and error.
+	Match string `json:"match"`
+	// Fix says what to do, in Markdown.
+	Fix string `json:"fix"`
 }
 
 // Variable is a value known only when a step runs, such as the profile to
@@ -118,6 +132,9 @@ type Step struct {
 	Gate bool `json:"gate,omitempty"`
 	// Notes follow the actions, in Markdown.
 	Notes []string `json:"notes,omitempty"`
+	// Troubleshoot are fixes for failures of this step; a run that fails
+	// shows them before the runbook's.
+	Troubleshoot []Fix `json:"troubleshoot,omitempty"`
 }
 
 // Action is one thing to do: a command to run, or an instruction.
@@ -192,6 +209,28 @@ func (rb *Runbook) Steps() []*Step {
 		}
 	}
 	return out
+}
+
+// Phase returns the phase with the ID, or nil.
+func (rb *Runbook) Phase(id string) *Phase {
+	for i := range rb.Phases {
+		if rb.Phases[i].ID == id {
+			return &rb.Phases[i]
+		}
+	}
+	return nil
+}
+
+// PhaseOf returns the phase that holds the step with the ID, or nil.
+func (rb *Runbook) PhaseOf(stepID string) *Phase {
+	for i := range rb.Phases {
+		for j := range rb.Phases[i].Steps {
+			if rb.Phases[i].Steps[j].ID == stepID {
+				return &rb.Phases[i]
+			}
+		}
+	}
+	return nil
 }
 
 // Step returns the step with the ID, or nil.

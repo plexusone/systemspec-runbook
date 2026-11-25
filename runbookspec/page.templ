@@ -54,6 +54,11 @@ templ pageBody(v pageView) {
 			@step(s)
 		}
 	}
+	if len(v.Troubleshoot) > 0 {
+		<h2 id="troubleshooting">Troubleshooting</h2>
+		<p>When a command fails, a run shows each fix whose pattern its output or error matches.</p>
+		@fixes(v.Troubleshoot)
+	}
 	if len(v.Later) > 0 {
 		<h2 id="later">Later</h2>
 		<table>
@@ -141,5 +146,19 @@ templ step(s stepView) {
 				}
 			</ul>
 		}
+		if len(s.Troubleshoot) > 0 {
+			<p><span class="label">Troubleshooting:</span></p>
+			@fixes(s.Troubleshoot)
+		}
 	</section>
+}
+
+// fixes lists fixes: the pattern a failure's output matches, then what to
+// do.
+templ fixes(fs []fixView) {
+	<ul class="fixes">
+		for _, f := range fs {
+			<li><code>{ f.Match }</code>: @f.Fix</li>
+		}
+	</ul>
 }

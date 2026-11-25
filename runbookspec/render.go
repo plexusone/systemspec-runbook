@@ -131,6 +131,11 @@ func (r *renderer) page() {
 		}
 	}
 
+	if len(rb.Troubleshoot) > 0 {
+		r.p("## Troubleshooting\n\nWhen a command fails, a run shows each fix whose pattern its output or error matches.\n\n")
+		r.fixes(rb.Troubleshoot)
+	}
+
 	if len(rb.Later) > 0 {
 		r.p("## Later\n\n| What | Needs |\n|---|---|\n")
 		for _, l := range rb.Later {
@@ -180,6 +185,19 @@ func (r *renderer) step(s *Step) {
 		}
 		r.p("\n")
 	}
+	if len(s.Troubleshoot) > 0 {
+		r.p("**Troubleshooting:**\n\n")
+		r.fixes(s.Troubleshoot)
+	}
+}
+
+// fixes renders fixes as a list: the pattern a failure's output matches,
+// then what to do.
+func (r *renderer) fixes(fixes []Fix) {
+	for _, f := range fixes {
+		r.p("- `%s`: %s\n", f.Match, indent(r.text(strings.TrimSpace(f.Fix)), "  ", false))
+	}
+	r.p("\n")
 }
 
 // actions renders one action as paragraphs, and several as a numbered

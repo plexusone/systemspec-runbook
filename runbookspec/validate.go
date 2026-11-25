@@ -68,6 +68,11 @@ func (rb *Runbook) Validate(opts ValidateOptions) error {
 			add("later: what and needs are required")
 		}
 	}
+	for i, f := range rb.Troubleshoot {
+		for _, e := range f.validate() {
+			add("troubleshoot %d: %v", i+1, e)
+		}
+	}
 	errs = append(errs, rb.validateVariables()...)
 	return errors.Join(errs...)
 }
@@ -103,6 +108,9 @@ func (rb *Runbook) validateVariables() []error {
 		}
 	}
 	page := []string{rb.Summary, rb.Usage}
+	for _, f := range rb.Troubleshoot {
+		page = append(page, f.Fix)
+	}
 	for _, p := range rb.Phases {
 		page = append(page, p.Summary, p.Gives)
 	}
@@ -242,6 +250,11 @@ func (s *Step) validate(phaseID string, seen map[string]bool, opts ValidateOptio
 			add("check %s: %v", c.ID, e)
 		}
 	}
+	for i, f := range s.Troubleshoot {
+		for _, e := range f.validate() {
+			add("troubleshoot %d: %v", i+1, e)
+		}
+	}
 	for _, id := range s.Credentials {
 		if opts.KnownCredential != nil && !opts.KnownCredential(id) {
 			add("credential %s is not in the registry", id)
@@ -321,4 +334,19 @@ func (rb *Runbook) Unchecked() []string {
 		}
 	}
 	return out
+}
+
+// validate checks that a fix has a pattern that compiles and says what to
+// do.
+func (f Fix) validate() []error {
+	var errs []error
+	if f.Match == "" {
+		errs = append(errs, errors.New("match is required"))
+	} else if _, err := regexp.Compile(f.Match); err != nil {
+		errs = append(errs, fmt.Errorf("match %q: %w", f.Match, err))
+	}
+	if strings.TrimSpace(f.Fix) == "" {
+		errs = append(errs, errors.New("fix is required"))
+	}
+	return errs
 }

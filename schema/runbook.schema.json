@@ -172,6 +172,25 @@
       ],
       "description": "Exec is one command: a program and its arguments, never run through a shell, so it behaves the same on every platform."
     },
+    "Fix": {
+      "properties": {
+        "match": {
+          "type": "string",
+          "description": "Match is a regular expression (Go syntax) matched against the failed\ncommand's output and error."
+        },
+        "fix": {
+          "type": "string",
+          "description": "Fix says what to do, in Markdown."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "match",
+        "fix"
+      ],
+      "description": "Fix is what to do about a failure: when the failed command's output or error matches the pattern, the run shows the fix."
+    },
     "HTTPCheck": {
       "properties": {
         "url": {
@@ -343,6 +362,13 @@
           },
           "type": "array",
           "description": "Later is work that follows the runbook, listed at the end."
+        },
+        "troubleshoot": {
+          "items": {
+            "$ref": "#/$defs/Fix"
+          },
+          "type": "array",
+          "description": "Troubleshoot are fixes for failures any step may meet, such as a\nconnection refused or a key not loaded. A run that fails shows each\nwhose pattern matches; a step's own come first."
         }
       },
       "additionalProperties": false,
@@ -438,6 +464,13 @@
           },
           "type": "array",
           "description": "Notes follow the actions, in Markdown."
+        },
+        "troubleshoot": {
+          "items": {
+            "$ref": "#/$defs/Fix"
+          },
+          "type": "array",
+          "description": "Troubleshoot are fixes for failures of this step; a run that fails\nshows them before the runbook's."
         }
       },
       "additionalProperties": false,

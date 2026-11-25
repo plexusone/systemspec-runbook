@@ -59,7 +59,13 @@ type pageView struct {
 	Title, Generator string
 	Summary, Usage   templ.Component
 	Phases           []phaseView
+	Troubleshoot     []fixView
 	Later            []laterView
+}
+
+type fixView struct {
+	Match string
+	Fix   templ.Component
 }
 
 type phaseView struct {
@@ -78,6 +84,7 @@ type stepView struct {
 	Checks                 []templ.Component
 	VerifyCommand          string
 	Gate                   bool
+	Troubleshoot           []fixView
 }
 
 type actionView struct {
@@ -148,9 +155,15 @@ func (rb *Runbook) view(opts RenderOptions) (pageView, error) {
 			if opts.VerifyCommand != "" && len(s.Checks) > 0 {
 				sv.VerifyCommand = strings.ReplaceAll(opts.VerifyCommand, "{step}", s.ID)
 			}
+			for _, f := range s.Troubleshoot {
+				sv.Troubleshoot = append(sv.Troubleshoot, fixView{Match: f.Match, Fix: md(f.Fix)})
+			}
 			pv.Steps = append(pv.Steps, sv)
 		}
 		v.Phases = append(v.Phases, pv)
+	}
+	for _, f := range rb.Troubleshoot {
+		v.Troubleshoot = append(v.Troubleshoot, fixView{Match: f.Match, Fix: md(f.Fix)})
 	}
 	for _, l := range rb.Later {
 		v.Later = append(v.Later, laterView{What: l.What, Needs: md(l.Needs)})
@@ -281,6 +294,7 @@ pre { position: relative; padding-right: 3rem; }
 .copy.done { color: var(--agent); border-color: var(--agent); }
 .newtab { display: inline-flex; vertical-align: -0.1em; margin-left: 0.2em; color: var(--muted); text-decoration: none; }
 .newtab:hover, .newtab:focus-visible { color: var(--link); }
+.fixes > li > p:first-of-type { display: inline; }
 .newtab svg { width: 0.85em; height: 0.85em; fill: currentColor; }`
 
 // Script adds a copy button to every code block, for pasting a command

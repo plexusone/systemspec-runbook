@@ -261,6 +261,9 @@ func (s *Step) strings() []string {
 	for _, c := range s.Checks {
 		out = append(out, c.strings()...)
 	}
+	for _, f := range s.Troubleshoot {
+		out = append(out, f.Fix)
+	}
 	return out
 }
 
