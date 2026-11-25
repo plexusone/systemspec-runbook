@@ -9,6 +9,26 @@
   ],
   "releases": [
     {
+      "version": "v0.4.1",
+      "date": "2026-11-25",
+      "highlights": [
+        {
+          "description": "A step whose checks fail stops the run: run exits non-zero, and a phase run stops there instead of reporting the phase done"
+        }
+      ],
+      "fixed": [
+        {
+          "description": "A step whose actions were done but whose checks failed was recorded as failed while run returned success, so a phase run went on and reported the phase done; Run now returns ErrChecksFailed, and the phase run says which checks failed, how to check again and how to resume",
+          "commit": "988314d"
+        }
+      ],
+      "documentation": [
+        {
+          "description": "The getting-started guide says what a run does when a step's checks fail"
+        }
+      ]
+    },
+    {
       "version": "v0.4.0",
       "date": "2026-11-25",
       "highlights": [
