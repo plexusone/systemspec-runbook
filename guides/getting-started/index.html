@@ -856,6 +856,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../releases/v0.4.1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.4.1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../releases/v0.4.0/" class="md-nav__link">
         
   
@@ -1359,7 +1387,9 @@ environment already sets.</p>
 refuses to start with the full list if any is missing. It runs the steps
 in order, skipping those already done or verified, and stops at the first
 that fails, is stopped, or waits for a step outside the phase; run it again
-to resume.</p>
+to resume. A step whose checks fail after its actions are done fails too:
+<code>run</code> exits non-zero and says which checks failed. Fix what they found,
+then <code>verify &lt;step&gt; --record</code> records it verified.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <p>A failed run says where it stopped and what to do:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Phase 1 (Provision) stopped at step 1.2 &quot;Up&quot;, action 1, command 1:
