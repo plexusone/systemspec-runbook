@@ -192,3 +192,40 @@ func TestRenderTroubleshooting(t *testing.T) {
 		}
 	}
 }
+
+// TestRunPhaseStopsWhenChecksFail checks that a step whose actions are
+// done but whose checks fail is recorded as failed, returns ErrChecksFailed,
+// and stops the phase with a report instead of calling it done.
+func TestRunPhaseStopsWhenChecksFail(t *testing.T) {
+	h := newHarness()
+	h.answers = []bool{true}
+	h.rb.Phases[0].Steps[0].Checks = []Check{{ID: "www", Description: "www is sent to HTTPS", Kind: KindCommand,
+		Command: &CommandCheck{Args: []string{"curl", "http://www.example.com"}}}}
+	r := h.runner(map[string]string{"profile": "ops"})
+	r.Yes = true
+	r.Command = "bin/infra runbook run"
+	r.Checker = &Checker{Command: func(context.Context, []string) (string, error) {
+		return "", errors.New("exit status 6")
+	}}
+	err := r.RunPhase(context.Background(), h.rb, h.log, "1")
+	if !errors.Is(err, ErrChecksFailed) {
+		t.Fatalf("err = %v\n%s", err, h.out.String())
+	}
+	out := h.out.String()
+	for _, want := range []string{
+		`Phase 1 (Provision) stopped at step 1.1 "`,
+		"its actions are done, but its checks failed (www)",
+		"check again: bin/infra runbook verify 1.1 --record",
+		"Resume the phase: bin/infra runbook run 1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the output lacks %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "is done:") || len(h.ran) == 0 || h.ran[len(h.ran)-1].Args[1] == "up" {
+		t.Errorf("the phase went on past the failed step\n%s", out)
+	}
+	if !strings.Contains(h.types(), "1.1:failed") {
+		t.Errorf("events: %s", h.types())
+	}
+}

@@ -86,6 +86,16 @@ func (r *Runner) command() string {
 	return "run"
 }
 
+// verifyCommand is how a report names the verify command: the run
+// command with its last word "run" as "verify", such as "bin/infra runbook
+// verify"; "verify" when the runner was not told.
+func (r *Runner) verifyCommand() string {
+	if c, ok := strings.CutSuffix(r.command(), "run"); ok {
+		return c + "verify"
+	}
+	return "verify"
+}
+
 // report shows a failure: where the run stopped, the command, its error
 // and output, what to do, and how to go on.
 func (r *Runner) report(ctx context.Context, f *Failure) {

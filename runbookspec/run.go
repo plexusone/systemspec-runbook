@@ -21,6 +21,10 @@ import (
 // progress; run it again to continue.
 var ErrStopped = errors.New("runbook: stopped before the step was done; it stays in progress")
 
+// ErrChecksFailed is returned when a step's actions are done but its checks
+// fail: the step is recorded as failed, and a phase run stops there.
+var ErrChecksFailed = errors.New("runbook: the step's checks failed")
+
 // Prompt asks a yes-or-no question.
 type Prompt func(question string) (bool, error)
 
@@ -242,7 +246,12 @@ func (r *Runner) Run(ctx context.Context, rb *Runbook, l *Log, id string) error 
 		r.say("  %-4s %s: %s", res.Outcome, res.Description, res.Detail)
 	}
 	if e, ok := VerifyEvent(statusOf(rb, l, id), results, r.Now(), r.As); ok {
-		return r.record(rb, l, e)
+		if err := r.record(rb, l, e); err != nil {
+			return err
+		}
+		if e.Type == EventFailed {
+			return fmt.Errorf("%w: %s", ErrChecksFailed, strings.TrimPrefix(e.Note, "checks failed: "))
+		}
 	}
 	return nil
 }
@@ -315,6 +324,10 @@ func (r *Runner) RunPhase(ctx context.Context, rb *Runbook, l *Log, id string) e
 		if err := r.Run(ctx, rb, l, s.ID); err != nil {
 			if errors.Is(err, ErrStopped) {
 				r.say("\nPhase %s (%s) stopped at step %s %q before it was done.\nResume the phase: %s %s", p.ID, p.Title, s.ID, s.Title, r.command(), p.ID)
+			}
+			if errors.Is(err, ErrChecksFailed) {
+				r.say("\nPhase %s (%s) stopped at step %s %q: its actions are done, but its checks failed (%s).\nFix what they found, then check again: %s %s --record\nResume the phase: %s %s",
+					p.ID, p.Title, s.ID, s.Title, strings.TrimPrefix(err.Error(), ErrChecksFailed.Error()+": "), r.verifyCommand(), s.ID, r.command(), p.ID)
 			}
 			return err
 		}
