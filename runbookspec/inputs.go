@@ -276,7 +276,8 @@ func (r *Runner) missingInputs(ctx context.Context, rb *Runbook, steps []*Step) 
 // LoadEnvFile sets environment variables from a file of NAME=value lines,
 // as a person keeps the values a runbook needs in one place: blank lines
 // and lines starting with # are skipped, "export " is allowed, and a value
-// may be quoted. A variable the environment already sets is left as it is.
+// may be quoted. $NAME and ${NAME} expand from the environment, as in a
+// shell, except in single quotes. A variable the environment already sets is left as it is.
 // It returns the names it set, never the values.
 func LoadEnvFile(path string) ([]string, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // G304: the file the person named
@@ -297,8 +298,15 @@ func LoadEnvFile(path string) ([]string, error) {
 			return set, fmt.Errorf("runbook: env file %s, line %d: want NAME=value", path, n)
 		}
 		val = strings.TrimSpace(val)
+		literal := false
 		if len(val) >= 2 && (val[0] == '"' || val[0] == '\'') && val[len(val)-1] == val[0] {
+			literal = val[0] == '\''
 			val = val[1 : len(val)-1]
+		}
+		if !literal {
+			// As a shell would: $NAME and ${NAME} from the environment,
+			// including lines before this one.
+			val = os.ExpandEnv(val)
 		}
 		if val == "" {
 			continue

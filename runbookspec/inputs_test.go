@@ -114,16 +114,22 @@ func TestValidateInputs(t *testing.T) {
 
 func TestLoadEnvFileAndTemplate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "launch.env")
-	data := "# comment\n\nexport RUNBOOKSPEC_TEST_A=one\nRUNBOOKSPEC_TEST_B=\"two words\"\nRUNBOOKSPEC_TEST_C=from-file\nRUNBOOKSPEC_TEST_D=\n"
+	data := "# comment\n\nexport RUNBOOKSPEC_TEST_A=one\nRUNBOOKSPEC_TEST_B=\"two words\"\nRUNBOOKSPEC_TEST_C=from-file\nRUNBOOKSPEC_TEST_D=\n" +
+		"export RUNBOOKSPEC_TEST_E=\"$RUNBOOKSPEC_TEST_A/key\"\nRUNBOOKSPEC_TEST_F='$RUNBOOKSPEC_TEST_A'\n"
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("RUNBOOKSPEC_TEST_A", "")
 	t.Setenv("RUNBOOKSPEC_TEST_B", "")
 	t.Setenv("RUNBOOKSPEC_TEST_C", "from-shell")
+	t.Setenv("RUNBOOKSPEC_TEST_E", "")
+	t.Setenv("RUNBOOKSPEC_TEST_F", "")
 	set, err := LoadEnvFile(path)
-	if err != nil || strings.Join(set, ",") != "RUNBOOKSPEC_TEST_A,RUNBOOKSPEC_TEST_B" {
+	if err != nil || strings.Join(set, ",") != "RUNBOOKSPEC_TEST_A,RUNBOOKSPEC_TEST_B,RUNBOOKSPEC_TEST_E,RUNBOOKSPEC_TEST_F" {
 		t.Fatalf("set %v, %v", set, err)
+	}
+	if os.Getenv("RUNBOOKSPEC_TEST_E") != "one/key" || os.Getenv("RUNBOOKSPEC_TEST_F") != "$RUNBOOKSPEC_TEST_A" {
+		t.Errorf("expansion: E=%q F=%q", os.Getenv("RUNBOOKSPEC_TEST_E"), os.Getenv("RUNBOOKSPEC_TEST_F"))
 	}
 	if os.Getenv("RUNBOOKSPEC_TEST_B") != "two words" || os.Getenv("RUNBOOKSPEC_TEST_C") != "from-shell" {
 		t.Error("a value was not set, or the environment's was replaced")
