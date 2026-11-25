@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -165,7 +167,39 @@ func (r *renderer) html(text string) templ.Component {
 	}
 	// goldmark writes no raw HTML from the text, so its output is safe to
 	// place as it is.
-	return templ.Raw(b.String())
+	return templ.Raw(withNewTabLinks(b.String()))
+}
+
+// newTabIcon is the icon after a link that opens it in a new tab.
+const newTabIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg>`
+
+// linkTag matches a link goldmark wrote: its href, already escaped, and
+// the rest of the element. Links do not nest, so the first </a> closes it.
+var linkTag = regexp.MustCompile(`<a href="([^"]*)"[^>]*>.*?</a>`)
+
+// withNewTabLinks follows each link in converted Markdown with a second
+// link, an icon, that opens the same address in a new tab. Links within
+// the page (#anchor) get none.
+func withNewTabLinks(h string) string {
+	return linkTag.ReplaceAllStringFunc(h, func(a string) string {
+		href := linkTag.FindStringSubmatch(a)[1]
+		return a + newTabLink(href)
+	})
+}
+
+// newTabLink is the icon link after a link to href, already escaped for an
+// attribute; empty for a link within the page.
+func newTabLink(href string) string {
+	if href == "" || strings.HasPrefix(href, "#") {
+		return ""
+	}
+	return `<a class="newtab" href="` + href + `" target="_blank" rel="noopener noreferrer" title="Open in a new tab" aria-label="Open in a new tab">` + newTabIcon + `</a>`
+}
+
+// newTab is newTabLink for a link the page's components write, whose href
+// is not yet escaped.
+func newTab(href string) templ.Component {
+	return templ.Raw(newTabLink(html.EscapeString(href)))
 }
 
 // escapeAngles writes < outside code as &lt;, so a placeholder such as
@@ -244,7 +278,10 @@ pre { position: relative; padding-right: 3rem; }
   border-radius: 6px; padding: 0.2rem 0.4rem; cursor: pointer; }
 .copy:hover, .copy:focus-visible { color: var(--fg); border-color: var(--muted); }
 .copy svg { width: 14px; height: 14px; fill: currentColor; }
-.copy.done { color: var(--agent); border-color: var(--agent); }`
+.copy.done { color: var(--agent); border-color: var(--agent); }
+.newtab { display: inline-flex; vertical-align: -0.1em; margin-left: 0.2em; color: var(--muted); text-decoration: none; }
+.newtab:hover, .newtab:focus-visible { color: var(--link); }
+.newtab svg { width: 0.85em; height: 0.85em; fill: currentColor; }`
 
 // Script adds a copy button to every code block, for pasting a command
 // into a terminal. It copies the block's text as it is, with the

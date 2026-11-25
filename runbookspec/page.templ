@@ -103,7 +103,7 @@ templ step(s stepView) {
 						}
 						@a.Text
 						if a.Link != nil {
-							<p>See <a href={ templ.SafeURL(a.Link.Href) }>{ a.Link.Text }</a>.</p>
+							<p>See <a href={ templ.SafeURL(a.Link.Href) }>{ a.Link.Text }</a>@newTab(a.Link.Href){ "." }</p>
 						}
 						if a.Code != "" {
 							<pre><code>{ a.Code }</code></pre>
