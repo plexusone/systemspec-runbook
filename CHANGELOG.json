@@ -9,6 +9,65 @@
   ],
   "releases": [
     {
+      "version": "v0.4.0",
+      "date": "2026-11-25",
+      "highlights": [
+        {
+          "description": "Set everything up once, then run a whole phase: prepare lists every variable and input a run needs, run <phase> checks them all before its first step, and a failure says where it stopped and how to fix it"
+        }
+      ],
+      "added": [
+        {
+          "description": "`run <phase>` runs a phase's steps in order, skipping those already done or verified, stops at the first that fails, is stopped, or waits outside the phase, and resumes there; `Runner.RunPhase`",
+          "commit": "e9b1309"
+        },
+        {
+          "description": "A failed run's report: the phase, step, action and command, its error and the last lines of its output, the matching fixes, and the commands that resume the phase or retry the step; `Failure`",
+          "commit": "e9b1309"
+        },
+        {
+          "description": "`Troubleshoot` on a runbook and a step: fixes whose pattern, a Go regular expression, matches a failure's output; listed on both pages",
+          "commit": "1aa5bcd"
+        },
+        {
+          "description": "`Inputs`: values in the environment, marked `secret` when never to be shown, and preconditions a command checks, each with how to set it up; a step's `needs` names those it needs, and a run checks them before it starts",
+          "commit": "8dcaf61"
+        },
+        {
+          "description": "`prepare <step|phase|all>` lists every variable and input a run needs, which are set, missing, derived or produced later, and how to set up each one missing, without showing a value; `Runner.Requirements`, `Runbook.Remaining`",
+          "commit": "7985713"
+        },
+        {
+          "description": "`--env-file` on `run` and `prepare` loads `NAME=value` lines, expanding `$NAME` as a shell does, without replacing the environment; `prepare --write-env` writes such a file with no values; `LoadEnvFile`, `EnvTemplate`",
+          "commit": "7985713"
+        },
+        {
+          "description": "Before You Start on both pages: every variable and input with how to set it up and the steps that use it; each step links the inputs it needs",
+          "commit": "8dcaf61"
+        },
+        {
+          "description": "`Runbook.Phase` and `Runbook.PhaseOf`",
+          "commit": "1aa5bcd"
+        }
+      ],
+      "changed": [
+        {
+          "description": "A failed `run` no longer prints the command's usage after its report",
+          "commit": "6832b6a"
+        },
+        {
+          "description": "The runbook's JSON Schema adds `inputs`, `troubleshoot` and a step's `needs` and `troubleshoot`",
+          "commit": "8dcaf61"
+        }
+      ],
+      "documentation": [
+        {
+          "description": "The README and Getting Started describe inputs, prepare, phase runs and troubleshooting",
+          "commit": "645127d"
+        }
+      ]
+    },
+    {
       "version": "v0.3.0",
       "date": "2026-11-25",
       "highlights": [
