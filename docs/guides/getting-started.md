@@ -174,7 +174,9 @@ environment already sets.
 refuses to start with the full list if any is missing. It runs the steps
 in order, skipping those already done or verified, and stops at the first
 that fails, is stopped, or waits for a step outside the phase; run it again
-to resume.
+to resume. A step whose checks fail after its actions are done fails too:
+`run` exits non-zero and says which checks failed. Fix what they found,
+then `verify <step> --record` records it verified.
 
 ## Troubleshooting
 
