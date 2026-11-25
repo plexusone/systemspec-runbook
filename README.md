@@ -37,6 +37,21 @@ was done in an event log, and derives where each step stands.
   a person's steps, stops at the first failure, records the step, then
   runs its checks. A new secret is generated in Go and piped straight into
   the program that stores it.
+- **Phase runs.** `run <phase>` runs a phase's steps in order, skipping
+  those already done, and resumes where it stopped. A failure says where:
+  the phase, step, action and command, the end of its output, the fixes
+  whose patterns match, and the commands that resume the phase or retry the
+  step.
+- **Inputs and preparing.** Besides variables, a runbook declares inputs:
+  a value in the environment, such as an API token, marked secret so it is
+  never shown, or a precondition a command checks, such as a key in the
+  SSH agent, each with how to set it up. Steps name the inputs they need.
+  `prepare <phase|step|all>` lists every variable and input a run needs,
+  which are in place and which are missing, and a run checks them all
+  before its first step. `--env-file` loads a file of `NAME=value` lines,
+  and `prepare --write-env` writes one to fill in, never with a value.
+- **Troubleshooting.** A runbook and its steps list fixes: a pattern a
+  failure's output matches, and what to do.
 - **Variables.** `{{name}}` in text, commands and checks, declared and
   filled from flags, the host's providers, the environment, or a command
   the variable declares, such as `pulumi stack output staticIp`, so a
@@ -47,7 +62,9 @@ was done in an event log, and derives where each step stands.
   full-width page styled for light and dark themes, each step a section
   with its owner's badge, a copy button on every command and a new-tab
   icon after every link to another page, or its body alone for a host's
-  own page. Text
+  own page. Both open with Before You Start, every variable and input
+  with how to set it up and the steps that use it, and list the
+  troubleshooting fixes. Text
   fields are Markdown, converted without passing raw HTML through, and
   step anchors match the Markdown page's. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
@@ -68,6 +85,8 @@ was done in an event log, and derives where each step stands.
 ```bash
 go install github.com/plexusone/systemspec-runbook/cmd/runbookspec@latest
 runbookspec list   --runbook runbook.json --events events.json
+runbookspec prepare 2 --runbook runbook.json --env-file ops.env
+runbookspec run 2   --runbook runbook.json --env-file ops.env   # the whole phase
 runbookspec run 1.2 --runbook runbook.json --var profile=ops
 runbookspec verify --all --record --runbook runbook.json --root .
 runbookspec restart --note v1.2.0 --runbook deploy.json --events deploy.events.json
@@ -104,7 +123,7 @@ The package example in `runbookspec/example_test.go` is a complete program.
 |---|---|
 | `runbookspec` | The model, validation, the event log and derived state, rendering and link checks |
 | `schema` | The JSON Schemas of a runbook and its log, embedded; `go generate ./schema` rewrites them |
-| `cli` | The Cobra commands a host tool mounts: validate, list, show, record, verify, run, doc (`--html` for HTML), schema; a host can rename the events flag |
+| `cli` | The Cobra commands a host tool mounts: validate, list, show, record, verify, prepare, run, restart, state, doc (`--html` for HTML), schema; a host can rename the events flag |
 | `cmd/runbookspec` | The same commands over a runbook kept as JSON |
 
 ## Documentation

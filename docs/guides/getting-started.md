@@ -126,6 +126,84 @@ prints nothing, the variable stays unfilled, the error says why, and the
 command runs again the next time. `Later` lets a run start before the
 stack exists.
 
+## Inputs
+
+An input is something steps need that is not a `{{name}}`: a value in the
+environment that commands read themselves, such as an API token, or a
+precondition a command checks, such as a key loaded in the SSH agent.
+Declare each with how to set it up, and name it in the steps that need it:
+
+```go
+rb.Inputs = []runbookspec.Input{
+	{Name: "CLOUDFLARE_API_TOKEN", Description: "a token for the zones",
+		Env: "CLOUDFLARE_API_TOKEN", Secret: true,
+		HowTo: "At [API Tokens](https://dash.cloudflare.com/profile/api-tokens): Zone · DNS · Edit, TTL ending tomorrow."},
+	{Name: "key-in-agent", Description: "the instance's key, loaded in the SSH agent",
+		Check: &runbookspec.CommandCheck{Args: []string{"ssh-add", "-l"}, Contains: "SHA256:…"},
+		HowTo: "`ssh-add ~/.ssh/fleet`"},
+}
+step.Needs = []string{"CLOUDFLARE_API_TOKEN", "key-in-agent"}
+```
+
+An input is in place when its environment variable holds a value and its
+check passes. A secret's value is only checked for, never shown or
+written. Both pages open with Before You Start: each variable and input,
+how to set it up, and the steps that use it; a step links the inputs it
+needs.
+
+## Prepare, Then Run a Phase
+
+```bash
+runbookspec prepare 2 --runbook runbook.json --write-env .local/phase-2.env
+# fill in .local/phase-2.env; export any secret in the shell
+runbookspec prepare 2 --runbook runbook.json --env-file .local/phase-2.env
+runbookspec run 2     --runbook runbook.json --env-file .local/phase-2.env
+```
+
+`prepare <phase|step|all>` lists what the remaining steps need, each
+variable and input `set`, `missing`, `derived` (its command gives it when
+first needed) or `later` (an earlier command of the run produces it), then
+how to set up each one missing. It only reads, never shows a value, and
+fails while anything is missing. `--write-env` writes an `export NAME=`
+line for each environment variable, with no values and a secret's line
+commented, and never overwrites a file. `--env-file` loads such a file
+first, as `source` would, expanding `$NAME`, without replacing what the
+environment already sets.
+
+`run <phase>` checks every variable and input before the first step, and
+refuses to start with the full list if any is missing. It runs the steps
+in order, skipping those already done or verified, and stops at the first
+that fails, is stopped, or waits for a step outside the phase; run it again
+to resume.
+
+## Troubleshooting
+
+A failed run says where it stopped and what to do:
+
+```text
+Phase 1 (Provision) stopped at step 1.2 "Up", action 1, command 1:
+    pulumi up
+Error: exit status 255
+    ssh: connect to host 192.0.2.1 port 22: Operation timed out
+Fix:
+  - Add your address to the admin CIDRs.
+Resume the phase: runbookspec run 1
+Retry the step:   runbookspec run 1.2
+```
+
+The fixes come from the runbook's and the step's `Troubleshoot`: each is
+shown when its pattern, a Go regular expression, matches the failed
+command's output or error, the step's before the runbook's:
+
+```go
+rb.Troubleshoot = []runbookspec.Fix{
+	{Match: `port 22: Operation timed out`, Fix: "Add your address to the admin CIDRs."},
+}
+```
+
+The pages list them too: the runbook's in a Troubleshooting section, and a
+step's after its checks.
+
 ## Commands a Run Executes
 
 `Command` is shown for a person to adapt; `Exec` is what `run` executes:
@@ -174,6 +252,8 @@ that no longer passes.
 ```bash
 runbookspec run 1.2 --runbook runbook.json --var profile=ops
 ```
+
+A step's run checks its own inputs first.
 
 The run refuses a blocked step, fills every variable before anything runs,
 asks before each command (`--yes` to skip asking), waits for a person's

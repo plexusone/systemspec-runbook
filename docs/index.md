@@ -11,6 +11,10 @@ counts are read, never typed twice. systemspec-runbook then:
 - **renders** it as a Markdown page whose links are computed;
 - **records** what was done in an event log, and **derives** where each
   step stands: `blocked`, `ready`, `in-progress`, `done` or `verified`;
+- **prepares** a run: every variable and input its steps need, which are
+  in place, and how to set up the rest;
+- **runs** a step or a whole phase, and when one fails, says where and
+  what to do;
 - **describes** both as JSON Schemas generated from the Go types.
 
 Start with [Getting Started](guides/getting-started.md). The
