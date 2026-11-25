@@ -674,6 +674,34 @@
   
   
     <li class="md-nav__item">
+      <a href="releases/v0.4.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.4.0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="releases/v0.3.0/" class="md-nav__link">
         
   
@@ -807,6 +835,10 @@ counts are read, never typed twice. systemspec-runbook then:</p>
 <li><strong>renders</strong> it as a Markdown page whose links are computed;</li>
 <li><strong>records</strong> what was done in an event log, and <strong>derives</strong> where each
   step stands: <code>blocked</code>, <code>ready</code>, <code>in-progress</code>, <code>done</code> or <code>verified</code>;</li>
+<li><strong>prepares</strong> a run: every variable and input its steps need, which are
+  in place, and how to set up the rest;</li>
+<li><strong>runs</strong> a step or a whole phase, and when one fails, says where and
+  what to do;</li>
 <li><strong>describes</strong> both as JSON Schemas generated from the Go types.</li>
 </ul>
 <p>Start with <a href="guides/getting-started/">Getting Started</a>. The
