@@ -9,6 +9,39 @@
   ],
   "releases": [
     {
+      "version": "v0.3.0",
+      "date": "2026-11-25",
+      "highlights": [
+        {
+          "description": "Recurring runbooks, such as a deploy, are run again from their first step, and a runbook's state says when each run began, finished or failed"
+        }
+      ],
+      "added": [
+        {
+          "description": "`Runbook.Recurring` marks a runbook that is run again; `Log.Restart` begins a new run, `Log.Runs` records when each began, and a step's state comes from the current run's events while earlier runs stay as history",
+          "commit": "592b503"
+        },
+        {
+          "description": "`StateOf` returns a `RunbookState`: each run's start, who began it and why, its last event, when it finished, its outcome (`not-started`, `in-progress`, `failed` or `finished`) and its steps by state, and when the runbook last finished",
+          "commit": "592b503"
+        },
+        {
+          "description": "`Log.NextRunStart` and `Log.Current`: the earliest time a new run can begin, and the current run's events",
+          "commit": "592b503"
+        },
+        {
+          "description": "`restart` and `state` commands; `state` prints text or `--format json`",
+          "commit": "122e8bb"
+        }
+      ],
+      "changed": [
+        {
+          "description": "The event log's schema adds `runs`, and the runbook's schema adds `recurring`; a log without runs is one run, so existing logs read as before",
+          "commit": "592b503"
+        }
+      ]
+    },
+    {
       "version": "v0.2.0",
       "date": "2026-11-22",
       "highlights": [
