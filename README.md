@@ -45,8 +45,9 @@ was done in an event log, and derives where each step stands.
   commands, credentials, when it is done and its checks. The HTML is built
   from the runbook with [templ](https://templ.guide) components: a
   full-width page styled for light and dark themes, each step a section
-  with its owner's badge and a copy button on every command, or its body
-  alone for a host's own page. Text
+  with its owner's badge, a copy button on every command and a new-tab
+  icon after every link to another page, or its body alone for a host's
+  own page. Text
   fields are Markdown, converted without passing raw HTML through, and
   step anchors match the Markdown page's. Text links to a step with
   `[[step:1.2]]` and to a resolved target with `[[key|text]]`, so no anchor
