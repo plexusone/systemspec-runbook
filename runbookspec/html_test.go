@@ -95,3 +95,30 @@ func TestHTMLCopiesCommands(t *testing.T) {
 		t.Error("a fragment carries the script; its host includes Script")
 	}
 }
+
+// TestHTMLNewTabLinks checks that each link to another page, in a text
+// field or an action's Link, is followed by an icon that opens it in a new
+// tab, and that a link within the page gets none.
+func TestHTMLNewTabLinks(t *testing.T) {
+	rb := htmlRunbook()
+	rb.Phases[0].Steps[0].Actions[1].Text = "Open [Branding](https://example.com/auth?a=1&b=2), then [the next step](#11-make-the-key)."
+	rb.Phases[0].Steps[0].Actions[0].Link = &Link{Text: "the plan", Href: "plan.md#fleet"}
+	page, err := rb.HTML(HTMLOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(page)
+	for _, want := range []string{
+		`<a href="https://example.com/auth?a=1&amp;b=2">Branding</a><a class="newtab" href="https://example.com/auth?a=1&amp;b=2" target="_blank" rel="noopener noreferrer"`,
+		`<a href="plan.md#fleet">the plan</a><a class="newtab" href="plan.md#fleet" target="_blank"`,
+		`<a href="#11-make-the-key">the next step</a>.`,
+		".newtab svg",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+	if n := strings.Count(s, `class="newtab"`); n != 2 {
+		t.Errorf("%d new-tab links; want 2, none for the link within the page", n)
+	}
+}
