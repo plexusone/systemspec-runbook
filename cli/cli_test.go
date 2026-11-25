@@ -18,7 +18,7 @@ import (
 func testRunbook() *rb.Runbook {
 	return &rb.Runbook{
 		ID: "launch", Title: "Launch",
-		Variables: []rb.Variable{{Name: "what", Description: "what go prints"}},
+		Variables: []rb.Variable{{Name: "what", Description: "what go prints", Env: "CLI_TEST_WHAT"}},
 		Phases: []rb.Phase{{ID: "1", Title: "Prepare", Gives: "a machine", Steps: []rb.Step{
 			{ID: "1.1", Title: "Sign in", Owner: rb.OwnerOperator, Done: "signed in",
 				Actions: []rb.Action{{Text: "Sign in."}},
@@ -164,6 +164,42 @@ func TestRunPhase(t *testing.T) {
 		!strings.Contains(out, " run 1\nRetry the step: ") || !strings.Contains(out, " run 1.2") ||
 		strings.Contains(out, "Usage:") {
 		t.Errorf("a failing phase: %v\n%s", err, out)
+	}
+}
+
+func TestPrepareAndEnvFile(t *testing.T) {
+	e := newEnv(t)
+	e.signedIn = true
+	t.Setenv("CLI_TEST_WHAT", "")
+	out, err := e.exec(t, "", "prepare", "1")
+	if err == nil || !strings.Contains(out, "Phase 1 (Prepare): 2 step(s) to run, 1.1, 1.2.") ||
+		!strings.Contains(out, "missing  variable  what") || !strings.Contains(out, "Set $CLI_TEST_WHAT, or give --var what=") {
+		t.Fatalf("prepare 1: %v\n%s", err, out)
+	}
+	tpl := filepath.Join(e.dir, "launch.env")
+	if _, err := e.exec(t, "", "prepare", "1", "--write-env", tpl); err == nil {
+		t.Error("prepare passed with a variable missing")
+	}
+	data, err := os.ReadFile(tpl)
+	if err != nil || !strings.Contains(string(data), "export CLI_TEST_WHAT=\n") {
+		t.Fatalf("template: %v\n%s", err, data)
+	}
+	if _, err := e.exec(t, "", "prepare", "1", "--write-env", tpl); err == nil || !strings.Contains(err.Error(), "never overwritten") {
+		t.Errorf("overwrote the template: %v", err)
+	}
+	if err := os.WriteFile(tpl, []byte("export CLI_TEST_WHAT=GOOS\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err = e.exec(t, "", "prepare", "all", "--env-file", tpl)
+	if err != nil || !strings.Contains(out, "Set from "+tpl+": CLI_TEST_WHAT") || !strings.Contains(out, "Ready:") || strings.Contains(out, "GOOS") {
+		t.Fatalf("prepare with the env file: %v\n%s", err, out)
+	}
+	out, err = e.exec(t, "y\n", "run", "1", "--yes", "--env-file", tpl)
+	if err != nil || !strings.Contains(out, "Phase 1 (Prepare) is done") {
+		t.Fatalf("run with the env file: %v\n%s", err, out)
+	}
+	if out, err = e.exec(t, "", "prepare", "1"); err != nil || !strings.Contains(out, "Nothing to run for phase 1 (Prepare)") {
+		t.Errorf("prepare after the run: %v\n%s", err, out)
 	}
 }
 
