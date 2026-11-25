@@ -32,6 +32,10 @@
         {
           "description": "`restart` and `state` commands; `state` prints text or `--format json`",
           "commit": "122e8bb"
+        },
+        {
+          "description": "On the HTML page, every link to another page is followed by an icon that opens it in a new tab; links within the page get none, and the icon needs no script",
+          "commit": "14ff93f"
         }
       ],
       "changed": [
