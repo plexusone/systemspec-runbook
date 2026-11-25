@@ -453,6 +453,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#recurring-runbooks-and-their-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recurring Runbooks and Their State
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#variables" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -812,6 +823,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../releases/v0.3.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../releases/v0.2.0/" class="md-nav__link">
         
   
@@ -932,6 +971,17 @@
     <span class="md-ellipsis">
       
         Record Progress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recurring-runbooks-and-their-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recurring Runbooks and Their State
       
     </span>
   </a>
@@ -1115,25 +1165,61 @@ heading does not exist, so a test can keep the page honest.</p>
 </table>
 <p>A step with no events is <code>blocked</code> until its dependencies are done or
 verified, then <code>ready</code>. A note that looks like a secret is refused.</p>
+<h2 id="recurring-runbooks-and-their-state">Recurring Runbooks and Their State<a class="headerlink" href="#recurring-runbooks-and-their-state" title="Permanent link">&para;</a></h2>
+<p>A launch is run once; a deploy is run every time. Mark a runbook that is
+run again <code>recurring</code>, and begin each run with <code>restart</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nx">rb</span><span class="p">.</span><span class="nx">Recurring</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nx">err</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Restart</span><span class="p">(</span><span class="nx">rb</span><span class="p">,</span><span class="w"> </span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">RunStart</span><span class="p">{</span><span class="nx">At</span><span class="p">:</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">NextRunStart</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nx">Now</span><span class="p">()),</span><span class="w"> </span><span class="nx">By</span><span class="p">:</span><span class="w"> </span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">OwnerOperator</span><span class="p">,</span><span class="w"> </span><span class="nx">Note</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;v1.2.0&quot;</span><span class="p">})</span>
+</code></pre></div>
+<p>The log keeps when each run began, and every event. A step's state comes
+from the current run's events, so after a restart every step is <code>ready</code>
+or <code>blocked</code> again, and the earlier runs stay as history. A runbook that
+is not recurring refuses a restart; reopen a step instead.</p>
+<p><code>StateOf</code> returns the runbook's state at a glance:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it says</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>current</code></td>
+<td>The run whose events give the steps' states</td>
+</tr>
+<tr>
+<td><code>runs</code></td>
+<td>Every run, oldest first: when it started and by whom, its last event, when it finished, its outcome and its steps by state</td>
+</tr>
+<tr>
+<td><code>lastFinished</code></td>
+<td>When the latest finished run finished</td>
+</tr>
+</tbody>
+</table>
+<p>A run's outcome is <code>not-started</code>, <code>in-progress</code>, <code>failed</code> when its last
+event is a failure, or <code>finished</code> once every step is done or verified.
+<code>state</code> prints it, as text or with <code>--format json</code>.</p>
 <h2 id="variables">Variables<a class="headerlink" href="#variables" title="Permanent link">&para;</a></h2>
 <p>Declare each value known only at run time, and reference it as
 <code>{{name}}</code> in text, commands and checks:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nx">rb</span><span class="p">.</span><span class="nx">Variables</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Variable</span><span class="p">{</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;profile&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the AWS profile&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">},</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the instance&#39;s address&quot;</span><span class="p">},</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nx">rb</span><span class="p">.</span><span class="nx">Variables</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Variable</span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;profile&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the AWS profile&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">},</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the instance&#39;s address&quot;</span><span class="p">},</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
 </code></pre></div>
 <p>Values come from <code>--var name=value</code>, then from sources the host registers,
 then from the declared environment variable, then from the variable's own
 command. The page shows each as <code>&lt;name&gt;</code>.</p>
 <p>A variable can name the command that gives it, so a runbook kept as JSON
 reads a value with no Go code:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the instance&#39;s address&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Later</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nx">From</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Exec</span><span class="p">{</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">        </span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;prod&quot;</span><span class="p">},</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">        </span><span class="nx">Dir</span><span class="p">:</span><span class="w">  </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="nx">Env</span><span class="p">:</span><span class="w">  </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">},</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">}},</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;the instance&#39;s address&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">Later</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="nx">From</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Exec</span><span class="p">{</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">        </span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;staticIp&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;prod&quot;</span><span class="p">},</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">        </span><span class="nx">Dir</span><span class="p">:</span><span class="w">  </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="nx">Env</span><span class="p">:</span><span class="w">  </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">},</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">}},</span>
 </code></pre></div>
 <p>The command runs only when the value is first needed, without a shell, in
 <code>--root</code> or its <code>dir</code>; its trimmed output is the value. If it fails or
@@ -1143,17 +1229,17 @@ stack exists.</p>
 <h2 id="commands-a-run-executes">Commands a Run Executes<a class="headerlink" href="#commands-a-run-executes" title="Permanent link">&para;</a></h2>
 <p><code>Command</code> is shown for a person to adapt; <code>Exec</code> is what <code>run</code> executes:
 a program and its arguments, never through a shell.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nx">Action</span><span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="nx">Owner</span><span class="p">:</span><span class="w"> </span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">OwnerOperator</span><span class="p">,</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nx">Text</span><span class="p">:</span><span class="w">  </span><span class="s">&quot;Create the stack and set the master password.&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nx">Exec</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Exec</span><span class="p">{</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="p">{</span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;init&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;prod&quot;</span><span class="p">},</span><span class="w"> </span><span class="nx">Dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">            </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">}},</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="p">{</span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;set&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--secret&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;db:password&quot;</span><span class="p">},</span><span class="w"> </span><span class="nx">Dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">            </span><span class="nx">Env</span><span class="p">:</span><span class="w">   </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">},</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">            </span><span class="nx">Stdin</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">{</span><span class="nx">RandomHex</span><span class="p">:</span><span class="w"> </span><span class="mi">32</span><span class="p">}},</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nx">Action</span><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nx">Owner</span><span class="p">:</span><span class="w"> </span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">OwnerOperator</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nx">Text</span><span class="p">:</span><span class="w">  </span><span class="s">&quot;Create the stack and set the master password.&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nx">Exec</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Exec</span><span class="p">{</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="p">{</span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;init&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;prod&quot;</span><span class="p">},</span><span class="w"> </span><span class="nx">Dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">            </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">}},</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="p">{</span><span class="nx">Args</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;pulumi&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;set&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;--secret&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;db:password&quot;</span><span class="p">},</span><span class="w"> </span><span class="nx">Dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;stack&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">            </span><span class="nx">Env</span><span class="p">:</span><span class="w">   </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{profile}}&quot;</span><span class="p">},</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">            </span><span class="nx">Stdin</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">{</span><span class="nx">RandomHex</span><span class="p">:</span><span class="w"> </span><span class="mi">32</span><span class="p">}},</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">}</span>
 </code></pre></div>
 <p><code>Stdin.RandomHex</code> generates the password in Go and pipes it in, so it is
 never shown and never in a process's arguments; <code>Stdin.From</code> pipes another
@@ -1161,21 +1247,21 @@ command's output in, as <code>a | b</code> would. The page shows the shell lines
 person would type: <code>cd stack</code>, <code>export AWS_PROFILE=&lt;profile&gt;</code>,
 <code>openssl rand -hex 32 | pulumi config set --secret db:password</code>.</p>
 <h2 id="checks">Checks<a class="headerlink" href="#checks" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nx">checker</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Checker</span><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nx">Values</span><span class="p">:</span><span class="w"> </span><span class="nx">values</span><span class="p">,</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nx">Named</span><span class="p">:</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">NamedFunc</span><span class="p">{</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">        </span><span class="s">&quot;aws.bucket&quot;</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">            </span><span class="c1">// return nil when so, an error wrapping ErrSkip when you cannot tell</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">}</span>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="nx">results</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">checker</span><span class="p">.</span><span class="nx">Step</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">rb</span><span class="p">.</span><span class="nx">Step</span><span class="p">(</span><span class="s">&quot;1.1&quot;</span><span class="p">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nx">checker</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">Checker</span><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="nx">Values</span><span class="p">:</span><span class="w"> </span><span class="nx">values</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nx">Named</span><span class="p">:</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">runbookspec</span><span class="p">.</span><span class="nx">NamedFunc</span><span class="p">{</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">        </span><span class="s">&quot;aws.bucket&quot;</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">args</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">            </span><span class="c1">// return nil when so, an error wrapping ErrSkip when you cannot tell</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="p">}</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="nx">results</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">checker</span><span class="p">.</span><span class="nx">Step</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">rb</span><span class="p">.</span><span class="nx">Step</span><span class="p">(</span><span class="s">&quot;1.1&quot;</span><span class="p">))</span>
 </code></pre></div>
 <p><code>dns</code>, <code>http</code>, <code>unreachable</code> and <code>command</code> checks need no registration.
 <code>VerifyEvent</code> turns results into <code>verified</code>, or <code>failed</code> for a done step
 that no longer passes.</p>
 <h2 id="run-a-step">Run a Step<a class="headerlink" href="#run-a-step" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>runbookspec<span class="w"> </span>run<span class="w"> </span><span class="m">1</span>.2<span class="w"> </span>--runbook<span class="w"> </span>runbook.json<span class="w"> </span>--var<span class="w"> </span><span class="nv">profile</span><span class="o">=</span>ops
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>runbookspec<span class="w"> </span>run<span class="w"> </span><span class="m">1</span>.2<span class="w"> </span>--runbook<span class="w"> </span>runbook.json<span class="w"> </span>--var<span class="w"> </span><span class="nv">profile</span><span class="o">=</span>ops
 </code></pre></div>
 <p>The run refuses a blocked step, fills every variable before anything runs,
 asks before each command (<code>--yes</code> to skip asking), waits for a person's
