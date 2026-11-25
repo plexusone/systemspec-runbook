@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -31,12 +32,17 @@ func testRunbook() *rb.Runbook {
 type env struct {
 	dir, events string
 	signedIn    bool
+	recurring   bool
 }
 
 func (e *env) exec(t *testing.T, stdin string, args ...string) (string, error) {
 	t.Helper()
 	cmd := New(Options{
-		Load:       func() (*rb.Runbook, error) { return testRunbook(), nil },
+		Load: func() (*rb.Runbook, error) {
+			r := testRunbook()
+			r.Recurring = e.recurring
+			return r, nil
+		},
 		EventsPath: e.events,
 		Root:       e.dir,
 		Named: map[string]rb.NamedFunc{"signed-in": func(context.Context, map[string]string) (string, error) {
@@ -188,5 +194,44 @@ func TestEventsFlagCanBeRenamed(t *testing.T) {
 	cmd := New(Options{Load: func() (*rb.Runbook, error) { return testRunbook(), nil }, EventsPath: e.events, EventsFlag: "progress", Root: e.dir})
 	if cmd.PersistentFlags().Lookup("events") != nil || cmd.PersistentFlags().Lookup("progress") == nil {
 		t.Error("the events flag was not renamed")
+	}
+}
+
+func TestRestartAndState(t *testing.T) {
+	e := newEnv(t)
+	if _, err := e.exec(t, "", "restart"); err == nil {
+		t.Error("restarted a run-once runbook")
+	}
+	e.recurring = true
+	for _, step := range []string{"1.1", "1.2"} {
+		if _, err := e.exec(t, "", "record", step, "done"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out, err := e.exec(t, "", "state")
+	if err != nil || !strings.Contains(out, "recurring, 1 run(s)") || !strings.Contains(out, "finished") {
+		t.Fatalf("state: %v\n%s", err, out)
+	}
+	// The restart, in the same second as the last event, begins just
+	// after it.
+	if out, err = e.exec(t, "", "restart", "--note", "v1.2.0", "--by", "operator"); err != nil || !strings.Contains(out, "run 2 begun") {
+		t.Fatalf("restart: %v\n%s", err, out)
+	}
+	if out, _ = e.exec(t, "", "list"); !strings.Contains(out, "1.1   ready") {
+		t.Errorf("after restart:\n%s", out)
+	}
+	out, err = e.exec(t, "", "state", "--format", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st rb.RunbookState
+	if err := json.Unmarshal([]byte(out), &st); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if len(st.Runs) != 2 || st.Current.Outcome != rb.OutcomeNotStarted || st.Current.Note != "v1.2.0" || st.Runs[0].Outcome != rb.OutcomeFinished || st.LastFinished == nil {
+		t.Errorf("state %+v", st)
+	}
+	if _, err := e.exec(t, "", "state", "--format", "yaml"); err == nil {
+		t.Error("an unknown format was accepted")
 	}
 }
